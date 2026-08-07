@@ -1,6 +1,6 @@
 ---
 
-description: "Task breakdown for fahrbereit"
+description: "Task breakdown for fahrbereit, organised as walking skeleton milestones"
 ---
 
 # Tasks: fahrbereit, a conversational car buying and rental advisor
@@ -9,9 +9,12 @@ description: "Task breakdown for fahrbereit"
 
 **Prerequisites**: plan.md, spec.md, research.md, data-model.md
 
-**Tests**: included. The specification asserts determinism, arithmetic identities and
-dataset invariants as measurable outcomes, so those tests are part of the deliverable
-rather than optional.
+**Organisation**: milestones, not layers. Milestone 1 is a complete but shallow journey
+from first message to simulated checkout. Later milestones replace shallow pieces with
+real ones, one at a time, and the system stays runnable after every change.
+
+**Standing rule**: the tree must never be left in a state where `docker compose up`
+fails.
 
 ## Format: `[ID] [P?] [Story] Description`
 
@@ -20,192 +23,224 @@ rather than optional.
 
 ---
 
-## Phase 0: De-risking
+## Phase 0: De-risking (gates M-2, M-3, M-4)
 
-**Purpose**: prove the two unverified integration paths before any surface is designed.
-Blocked on API key access.
+**Blocked**: requires a working API key in the build environment.
 
-- [ ] T001 Spike the MCP App render path behind an external agent endpoint, per
-  research.md spike 1. Scratch tree only.
-- [ ] T002 Spike a non-trivial dynamic component rendered from an agent emitted message,
-  per research.md spike 2. Scratch tree only.
-- [ ] T003 Record both outcomes and the resulting architecture decision in
-  `docs/spike-notes.md`, then discard the spike code.
+- [ ] T001 Spike A. Does the MCP Apps middleware render an app surface in chat behind an
+  external Claude Agent SDK endpoint? One MCP server, one tool carrying
+  `_meta.ui.resourceUri`, one single file hello world surface, one SDK session, one React
+  page. Success requires both a render and a button click round trip. Scratch tree only.
+- [ ] T002 Spike B. Render a car card with image, specification table and action from an
+  agent emitted message against a catalog built with `createCatalog`, and confirm the
+  surface update, component update, data model update and begin rendering flow. Scratch
+  tree only.
+- [ ] T003 Record both outcomes in `docs/spike-notes.md` with exact error text on any
+  failure, state which architecture path is selected, then discard the spike code.
+
+**Spike A fallback order**: Node process hosting the middleware in front of the Python
+endpoint, then hosting the app bridge directly in React and rendering the iframe
+ourselves. The path is reported before anything is built on it.
 
 ---
 
-## Phase 1: Setup
+## Milestone 1: Walking skeleton (target hour 12)
+
+**Definition of done**: a user completes the entire journey, interview to simulated
+checkout, from a clean clone via `docker compose up`. Shallow and plain by design.
+
+### Setup
 
 - [x] T004 Scaffold the spec-kit workflow and add `.gitignore`.
-- [ ] T005 Create the source tree from plan.md: `agent/`, `mcp/`, `ui/`, `data/`,
-  `evals/`, `tests/`, `docs/`.
-- [ ] T006 [P] Add `pyproject.toml` pinning the Python dependencies from plan.md.
-- [ ] T007 [P] Add `.env.example` documenting `ANTHROPIC_API_KEY` and the Langfuse
-  variables with placeholder values only.
+- [ ] T005 Create the source tree from plan.md.
+- [ ] T006 [P] Add `pyproject.toml` pinning the Python dependencies.
+- [ ] T007 [P] Add `.env.example` with placeholder values for `ANTHROPIC_API_KEY`,
+  `PAYMENT_PROVIDER` and the Langfuse variables.
+
+### Shallow data
+
+- [ ] T008 Hand write twenty listings in `data/listings.json` against the final schema
+  from data-model.md, covering both purchase and rental. No generator yet.
+- [ ] T009 Implement listing loading and search in `agent/tools/search.py`.
+
+### Shallow core (M-7 in memory)
+
+- [ ] T010 Implement the typed state in `agent/state.py` with three slots only: intent,
+  budget, category. Provenance wrapper included from the start so it does not need
+  retrofitting.
+- [ ] T011 Implement session state in memory keyed by session id in `agent/store.py`,
+  behind an interface that a persistent implementation can satisfy later.
+- [ ] T012 Implement hard filter only in `agent/tools/ranking.py`, ordered by price.
+
+### Shallow agent (M-1)
+
+- [ ] T013 Write a minimal system prompt and interview policy in `agent/prompts/`.
+- [ ] T014 Orchestrate the session in `agent/session.py` with tools registered in process.
+- [ ] T015 Expose the agent over AG-UI in `agent/server.py`.
+
+### Shallow interface (M-4, one surface)
+
+- [ ] T016 Scaffold the React client in `ui/` with the transport client and a session id.
+- [ ] T017 Define a minimal component catalog in `ui/src/a2ui/` and a plain car card list
+  surface driven by agent emitted messages.
+
+### Shallow MCP Apps (M-2, M-3)
+
+- [ ] T018 Build `mcp/formular/` with a tool carrying `_meta.ui.resourceUri` and a three
+  field surface, no validation, bundled to a single HTML file.
+- [ ] T019 Build `mcp/kasse/` with a surface showing a total and a persistent SIMULATION
+  banner, no tax breakdown yet.
+- [ ] T020 Define the `PaymentProvider` interface and `MockPaymentProvider` in
+  `agent/payment/`, resolved through a factory keyed by `PAYMENT_PROVIDER`. See Milestone
+  1 payment note below.
+- [ ] T021 Attach the MCP Apps middleware and confirm both surfaces render in chat.
+
+### Containers (M-9), not deferred
+
+- [ ] T022 Write the `Dockerfile` set and `docker-compose.yml` for agent, MCP servers and
+  client.
+- [ ] T023 Verify `docker compose up` from a clean clone with only an API key present.
+  **Milestone 1 does not complete until this passes.**
+
+### Documentation (M-10)
+
+- [ ] T024 First `README.md` pass covering sections 1, 3, 4, 7, 9 and 10.
+
+**Payment note for T020**: the provider seam is built at Milestone 1 rather than
+retrofitted at Milestone 3, because the interface shape determines what the checkout
+surface and the agent may know about payment. Retrofitting it later would mean touching
+the surface, the agent and the tests at once.
 
 ---
 
-## Phase 2: Marketplace data
+## Milestone 2: Substance (target hour 26)
 
-**Purpose**: inventory, which everything downstream reads. No dependency on a model.
+Each task replaces one shallow piece with the real one, keeping the system working.
 
-- [ ] T008 Write the German vocabulary tables in `data/vocab.py`: ten categories, at least
+### Real marketplace (M-6)
+
+- [ ] T025 Write the German vocabulary tables in `data/vocab.py`: ten categories, at least
   ten brands with model lines and trims per category, invented dealer and operator name
   parts, postal codes with places.
-- [ ] T009 Implement the seeded generator in `data/generate.py` producing correlated
-  purchase listings: registration, mileage, power, displacement, mass, consumption,
-  emissions, emissions class, environmental badge, inspection date, owners, price.
-- [ ] T010 Extend the generator with rental listings carrying ACRISS codes, rates, minimum
+- [ ] T026 Implement the seeded generator in `data/generate.py` producing correlated
+  purchase listings.
+- [ ] T027 Extend the generator with rental listings carrying ACRISS codes, rates, minimum
   period, included and excess kilometres, deposit, minimum age and availability window.
-- [ ] T011 Generate and commit `data/listings.json`.
-- [ ] T012 [P] Write dataset invariant tests in `tests/test_dataset.py`: scale floors,
-  brands per category, both listing types per category, price monotonicity within a model
-  line, badge follows emissions class, no reserved real world operator name, byte for byte
-  regeneration from the seed. Satisfies SC-009 and SC-010.
+- [ ] T028 Regenerate and commit `data/listings.json` with at least two hundred and fifty
+  listings, exactly ten categories, at least ten brands in each.
+- [ ] T029 [P] Write invariant tests in `tests/test_dataset.py`. Includes a coherence test
+  that fails when an older, higher mileage car in the same category and trim is priced
+  above a newer, lower mileage one. Also scale floors, both listing types per category,
+  badge follows emissions class, no reserved real world operator name, and byte for byte
+  regeneration from the seed.
+
+### Real interview (US1)
+
+- [ ] T030 Extend `agent/state.py` to the full slot set from data-model.md.
+- [ ] T031 Implement inference with explicit confirmation, the at most two questions rule,
+  and the never re-ask rule in `agent/prompts/`.
+- [ ] T032 [P] Test slot extraction and the no re-ask rule in `tests/test_interview.py`.
+
+### Real ranking (US2)
+
+- [ ] T033 Add per constraint drop count attribution to the hard filter in a fixed order.
+- [ ] T034 Implement weighted soft scoring over the six dimensions with weights derived
+  from interview state.
+- [ ] T035 Expose weights to the user and re-rank in place on adjustment.
+- [ ] T036 [P] Test ranking in `tests/test_ranking.py`: determinism, zero hard constraint
+  violations, contributions summing to the total, drop counts summing to the excluded
+  count, and the empty result path.
+
+### Real state (M-7)
+
+- [ ] T037 Replace the in memory store with SQLite persistence in `agent/store.py`.
+- [ ] T038 Verify state survives a page refresh and a backend restart.
+- [ ] T039 Implement the invalidation map from data-model.md, so a budget change discards
+  the ranking and keeps the interview.
+- [ ] T040 [P] Test invalidation in `tests/test_state.py`.
+
+### Second dynamic surface (M-4)
+
+- [ ] T041 Build the live progress surface: slot checklist with inferred values visually
+  distinct from stated ones, current phase, search status with filter counts, streaming
+  tool calls.
+- [ ] T042 Verify both surfaces update incrementally rather than by replacement.
+
+- [ ] T043 README pass two.
 
 ---
 
-## Phase 3: Deterministic core (US2)
+## Milestone 3: Depth (target hour 36)
 
-**Purpose**: the ranking differentiator. Testable without a model, an interface or a key.
-
-- [ ] T013 Implement the typed state in `agent/state.py`: slot wrapper with provenance,
-  the slot set, budget and hard constraint structures, the phase enum.
-- [ ] T014 Implement the invalidation map from data-model.md in `agent/state.py` and prove
-  it in `tests/test_state.py`: a weight change preserves the filter, a budget change
-  preserves the interview. Satisfies US6.
-- [ ] T015 Implement SQLite session persistence in `agent/store.py` with atomic writes.
-- [ ] T016 [P] Test persistence across a simulated process restart in
-  `tests/test_store.py`. Satisfies SC-008 and US7.
-- [ ] T017 Implement German cost of ownership in `agent/tools/tco.py`: motor vehicle tax
-  for combustion and electric, insurance band, energy, maintenance, residual value.
-- [ ] T018 [P] Test cost of ownership in `tests/test_tco.py`: the tax formula against hand
-  computed cases per fuel type and registration era, and the identity that itemised terms
-  sum to the reported total.
-- [ ] T019 Implement the hard filter in `agent/tools/ranking.py` with per constraint
-  elimination attribution in a fixed order.
-- [ ] T020 Implement weighted scoring in `agent/tools/ranking.py` over the six dimensions,
-  with weight derivation from interview state.
-- [ ] T021 Implement the runner up comparison producing quantified deltas only.
-- [ ] T022 [P] Test ranking in `tests/test_ranking.py`: determinism across repeated runs,
-  zero hard constraint violations in output, contributions summing to the total,
-  elimination counts summing to the excluded count, and the empty result path.
-  Satisfies SC-001, SC-004 and SC-005.
-- [ ] T023 Implement marketplace query functions in `agent/tools/search.py`: search,
-  single retrieval, availability against a target date.
-
----
-
-## Phase 4: Agent session (US1)
-
-- [ ] T024 Write the system prompt and interview policy in `agent/prompts/`: infer before
-  asking, confirm inferences, at most two questions per turn, never re-ask a filled slot,
-  narrate scores rather than produce them.
-- [ ] T025 Register the tools in process and orchestrate the session in
-  `agent/session.py` with the phase machine and persistence wiring.
-- [ ] T026 Verify a full interview to recommendation conversation from a terminal client.
-- [ ] T027 [P] Test slot extraction and the no re-ask rule in `tests/test_interview.py`.
+- [ ] T044 **Before writing any TCO code**: add to `research.md` the exact Kfz-Steuer
+  formula to be implemented, with its source, stating the per 100 cubic centimetre rate
+  for petrol and for diesel, the carbon dioxide allowance and the per gram rates by band,
+  the registration era boundaries that select between flat and banded rates, and the
+  electric vehicle exemption cutoff being assumed. The assumption is stated on the page,
+  not buried in a function.
+- [ ] T045 Implement German cost of ownership in `agent/tools/tco.py`: motor vehicle tax,
+  insurance band, energy cost at the user's annual mileage, maintenance by segment and
+  age, five year residual value.
+- [ ] T046 [P] Test in `tests/test_tco.py`: the tax formula against hand computed cases
+  per fuel type and registration era, and the identity that itemised terms sum to the
+  total.
+- [ ] T047 Build the "Warum dieses Auto" panel from score data only: per dimension bars,
+  dominant factors, quantified runner up comparison.
+- [ ] T048 Extend `kasse` to a full invoice: net, nineteen percent value added tax and
+  gross as separate lines.
+- [ ] T049 Add purchase and rental contract references, the mock payment reference and the
+  obviously invalid bank identifier, each carrying the SIMULATION token, plus the
+  confirmation watermark.
+- [ ] T050 [P] Test the checkout surface in `tests/test_kasse.py`: indicators present, tax
+  line separated, and no card input present anywhere in any state.
+- [ ] T051 Design pass across all surfaces: tabular figures, strict grid, hairline rules,
+  restrained instrument panel aesthetic.
+- [ ] T052 Build `mcp/markt/` exposing `search_listings`, `get_listing` and
+  `check_availability` over MCP. **First item in the cut order.**
+- [ ] T053 README pass three, including the worked ranking example with real numbers.
 
 ---
 
-## Phase 5: Marketplace MCP server
+## Milestone 4: Bonus (target hour 41, cut first if behind)
 
-- [ ] T028 Implement `mcp/markt/` exposing `search_listings`, `get_listing` and
-  `check_availability` over MCP, wrapping `agent/tools/search.py`.
-- [ ] T029 Wire the server into the session config with the tools pre-approved so no
-  permission prompt can interrupt a demonstration.
-
----
-
-## Phase 6: Transport and client shell
-
-- [ ] T030 Expose the agent over AG-UI in `agent/server.py`.
-- [ ] T031 Scaffold the React client in `ui/` with the transport client and a session id
-  that survives a reload.
-- [ ] T032 Implement the design system in `ui/src/styles/`: graphite ground, one accent,
-  hairline rules, strict grid, tabular figures as the global default for numerals.
+- [ ] T054 Wire OpenTelemetry and Langfuse in `agent/observability.py`, instrumented at
+  startup, with ranking tool inputs and outputs attached to spans. Requires Langfuse keys,
+  which must be requested.
+- [ ] T055 Write eight personas in `evals/personas.json`, each with a hidden ground truth
+  need.
+- [ ] T056 Build the harness in `evals/run_evals.py` scoring slot filling completeness,
+  hard constraint violations deterministically, rationale faithfulness by model judgement,
+  and turns to complete state.
+- [ ] T057 Expand to twenty personas only if time allows.
+- [ ] T058 Run the suite and commit results to `evals/results/`.
 
 ---
 
-## Phase 7: Dynamic surfaces (US2, US5)
+## Milestone 5: Deliverables (hours 41 to 46)
 
-- [ ] T033 Define the component catalog in `ui/src/a2ui/` with schema backed definitions
-  and renderers.
-- [ ] T034 Build the catalogue surface: ranked cards, headline specifications, score bar,
-  and an expansion revealing the reasoning panel and the cost of ownership table.
-- [ ] T035 Build the reasoning panel from score data only: per dimension bars, dominant
-  factors, quantified runner up comparison. Satisfies FR-022 and FR-023.
-- [ ] T036 Implement weight adjustment re-ranking in place through data model updates,
-  with the bars animating to their new values. Satisfies FR-020.
-- [ ] T037 Build the progress surface: slot checklist with inferred values distinguished,
-  current phase, resolving filter counts, streaming tool calls. Satisfies US5.
-- [ ] T038 Verify both surfaces update incrementally rather than by replacement.
-  Satisfies FR-034.
+- [ ] T059 README final pass, all eleven sections, including the requirements
+  traceability table and honest known limitations.
+- [ ] T060 [P] Write `docs/architecture.md`.
+- [ ] T061 Capture the four required screenshots.
+- [ ] T062 Slide deck against the organisers' template.
+- [ ] T063 Script and record the demonstration video.
+- [ ] T064 Walk the M-1 to M-10 table and name the file satisfying each row.
 
 ---
 
-## Phase 8: MCP Apps (US3, US4)
+## Cut order if behind schedule
 
-- [ ] T039 Build the `formular` MCP server in `mcp/formular/` with a tool declaring
-  `_meta.ui.resourceUri` and serving the surface as a `ui://` resource.
-- [ ] T040 Build the form surface with purchase and rental variants, client side
-  validation and bridge submission, bundled to a single HTML file.
-- [ ] T041 Write submitted values into session state and continue the conversation in
-  thread. Satisfies FR-026.
-- [ ] T042 Build the `kasse` MCP server in `mcp/kasse/`.
-- [ ] T043 Build the checkout surface: itemised summary with tax at nineteen percent as a
-  separate line, contract confirmation, payment reference, invalid bank identifier, and no
-  card input in the component set at all.
-- [ ] T044 Implement the simulation indicators: persistent banner, document watermark, and
-  the token inside every reference. Satisfies FR-030.
-- [ ] T045 [P] Test the checkout surface markup in `tests/test_kasse.py`: indicators
-  present, tax line separated, no card input present in any state. Satisfies SC-011.
-- [ ] T046 Attach the MCP Apps middleware and confirm both surfaces render in chat.
+1. `markt` MCP server (T052)
+2. Eval persona count (T057, then T055 to T058 entirely)
+3. TCO sophistication (T045 reduces to tax and energy only)
+4. Design polish (T051)
 
----
-
-## Phase 9: Observability
-
-- [ ] T047 Wire OpenTelemetry and Langfuse in `agent/observability.py`, instrumented at
-  startup.
-- [ ] T048 Attach ranking tool inputs and outputs to spans so a recommendation traces back
-  to its scores. Satisfies FR-035.
-
----
-
-## Phase 10: Evaluation
-
-- [ ] T049 Write twenty personas in `evals/personas.json`, each with a hidden ground truth
-  need and the constraints its recommendations must satisfy.
-- [ ] T050 Build the harness in `evals/run_evals.py` running each persona programmatically.
-- [ ] T051 Score slot filling completeness, hard constraint violations deterministically,
-  rationale faithfulness by model judgement, and turns to complete state.
-  Satisfies FR-037 and FR-038.
-- [ ] T052 Run the suite and commit results to `evals/results/`.
-
----
-
-## Phase 11: Delivery
-
-- [ ] T053 Write the `Dockerfile` set and `docker-compose.yml` bringing up agent, MCP
-  servers and client from one command. Satisfies SC-012.
-- [ ] T054 Verify a cold start on a clean checkout holding only an API key.
-- [ ] T055 Write `README.md`: description, screenshots, quickstart, architecture, how
-  ranking works, how to run the evaluations, the results table, project structure.
-- [ ] T056 [P] Write `docs/architecture.md`.
-- [ ] T057 Produce the slide deck against the organisers' template.
-- [ ] T058 Script and record the demonstration video covering an inference being confirmed,
-  the live progress surface, the ranked catalogue, a reasoning panel, the form in chat, the
-  simulated checkout with its banner visible, and a reload proving persistence.
-- [ ] T059 Walk the mandatory requirement table and name the file satisfying each row.
-
----
+Never cut: the two MCP Apps, the dynamic surfaces, Docker, or the README.
 
 ## Dependencies
 
-- Phase 0 gates phases 7 and 8. Everything else may proceed regardless of its outcome.
-- Phase 2 gates phase 3. Phase 3 gates phases 4 and 7.
-- Phase 4 gates phases 5, 6, 9 and 10.
-- Phases 2 and 3 carry no dependency on an API key and proceed while key access is
-  arranged.
-- Within a phase, tasks marked [P] touch distinct files and may proceed in any order.
+- Phase 0 gates T017 to T021 and T041. Everything else may proceed regardless.
+- T023 gates the whole of Milestone 2. Containers are proven at hour 12, not at hour 45.
+- T044 gates T045. The formula is written down and sourced before it is coded.
+- Milestone 2 gates Milestone 3. Milestone 3 gates Milestone 4.
+- Milestone 4 is cut in full before any Milestone 1 to 3 item is compromised.
