@@ -7,6 +7,7 @@ import { LANGS, type Lang, t } from "./i18n";
 import {
   AutoMarke,
   ClipboardList,
+  FahrbereitMarke,
   Languages,
   Moon,
   NAV_GROESSE,
@@ -296,7 +297,10 @@ export default function App() {
       <A2UIBridge onReady={bridgeBereit} />
       <header className="app-header">
         <div className="app-header-inner">
-          <div className="marke">fahrbereit</div>
+          <div className="marke">
+            <FahrbereitMarke size={26} />
+            <span>fahrbereit</span>
+          </div>
           <div className="marke-claim">{t("markeClaim", lang)}</div>
 
           <div className="kopf-rechts">

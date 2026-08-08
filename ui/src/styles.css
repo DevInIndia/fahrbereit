@@ -136,6 +136,9 @@ h2 { font: 300 19px/1.3 var(--schrift); letter-spacing: -0.02em; margin: 0; }
 }
 
 .marke {
+  display: flex;
+  align-items: center;
+  gap: 11px;
   font-size: 15px;
   letter-spacing: 0.26em;
   text-transform: uppercase;
@@ -144,6 +147,11 @@ h2 { font: 300 19px/1.3 var(--schrift); letter-spacing: -0.02em; margin: 0; }
   margin-right: 4px;
   white-space: nowrap;
 }
+/* The wordmark is letterspaced, which leaves a trailing gap after the last letter.
+   Pulling the mark's own spacing in by that much keeps the lockup optically even
+   rather than mathematically even. */
+.marke span { display: inline-block; margin-right: -0.26em; }
+.marke-zeichen { flex: none; display: block; }
 
 .marke-claim {
   font-size: 11px;

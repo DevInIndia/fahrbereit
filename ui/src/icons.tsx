@@ -45,6 +45,38 @@ export {
 
 type MarkeProps = { size?: number; className?: string };
 
+/**
+ * The brand mark, as used in the header.
+ *
+ * Same geometry as the favicon in `public/favicon.svg`, with two differences that
+ * matter. There is no disc: a favicon needs its own ground because it lands on a tab
+ * strip we do not control, whereas in the header the mark sits on the page and
+ * should take the page's ink. And the colours are variables rather than literals, so
+ * the mark inverts with the theme instead of needing a second file.
+ *
+ * The viewBox is cropped to the mark's own bounds so it sits tight against the
+ * wordmark. Keeping the favicon's square would padd it away from the lettering.
+ */
+export function FahrbereitMarke({ size = 26, className = "marke-zeichen" }: MarkeProps) {
+  return (
+    <svg
+      width={(size * 35) / 38}
+      height={size}
+      viewBox="7 5 35 38"
+      className={className}
+      aria-hidden="true"
+      focusable="false"
+    >
+      <g transform="translate(4.5 0) skewX(-12)">
+        <rect x="12" y="6" width="9" height="36" fill="currentColor" />
+        <rect x="21" y="6" width="17" height="9" fill="currentColor" />
+        <rect x="21" y="21" width="13" height="9" fill="currentColor" />
+        <rect x="25" y="33" width="9" height="9" fill="var(--accent)" />
+      </g>
+    </svg>
+  );
+}
+
 /** An estate car in outline. Used for the purchase path and the ranked catalogue. */
 export function AutoMarke({ size = NAV_GROESSE, className = "ikone" }: MarkeProps) {
   return (
