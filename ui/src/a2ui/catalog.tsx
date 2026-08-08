@@ -101,28 +101,66 @@ export const fahrbereitCatalog = createCatalog(
     FahrzeugKarte: ({ props }) => {
       const lang = useLang();
       const [open, setOpen] = useState(props.rang === 1);
+      /**
+       * Rank one is the focal point of the page, not the first row of a list, so it
+       * gets an editorial header rather than the compact one. The data is identical
+       * and comes from the same props; only its presentation differs. Nothing here
+       * computes anything, in either arrangement.
+       */
+      const istErster = props.rang === 1;
       return (
-        <article className="karte">
-          <div className="karte-kopf" onClick={() => setOpen(!open)}>
-            <div className="rang num">{props.rang}</div>
-            <div className="karte-titel">
-              <h2>{props.bezeichnung}</h2>
-              <div className="dim small">{props.kategorie} · {props.eckdaten}</div>
-              <div className="dim small">{props.haendler}</div>
+        <article className={`karte${istErster ? " hero" : ""}`}>
+          {istErster ? (
+            <>
+              <div className="hero-kopf" onClick={() => setOpen(!open)}>
+                <div>
+                  <div className="hero-marke">
+                    {t("empfehlung1", lang)} · {props.kategorie}
+                  </div>
+                  <h1 className="hero-name">{props.bezeichnung}</h1>
+                  <p className="hero-spec">{props.eckdaten}</p>
+                  <p className="hero-haendler">{props.haendler}</p>
+                </div>
+                <div className="hero-zahlen">
+                  <div className="hero-preis num">{props.preis}</div>
+                  <div className="hero-punkte num">
+                    {props.punkte.toFixed(1)} / 100 · {t("punkteBasis", lang)}{" "}
+                    {props.basisAnzahl}
+                  </div>
+                  <Bar value={props.punkte} />
+                </div>
+              </div>
+              <div className="hero-leiste">
+                <button className="klein" onClick={() => setOpen(!open)}>
+                  {open ? t("begruendungVerbergen", lang) : t("warumDiesesAuto", lang)}
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="karte-kopf" onClick={() => setOpen(!open)}>
+              <div className="rang num">{props.rang}</div>
+              <div className="karte-titel">
+                <h2>{props.bezeichnung}</h2>
+                <div className="dim small">{props.kategorie} · {props.eckdaten}</div>
+                <div className="dim small">{props.haendler}</div>
+              </div>
+              <div className="karte-zahlen">
+                <div className="preis num">{props.preis}</div>
+                <div className="punkte num">{props.punkte.toFixed(1)}</div>
+                <Bar value={props.punkte} />
+              </div>
+              <button className="chev" aria-label={t("begruendungZeigen", lang)}>
+                {open ? "−" : "+"}
+              </button>
             </div>
-            <div className="karte-zahlen">
-              <div className="preis num">{props.preis}</div>
-              <div className="punkte num">{props.punkte.toFixed(1)}</div>
-              <Bar value={props.punkte} />
-            </div>
-            <button className="chev" aria-label={t("begruendungZeigen", lang)}>
-              {open ? "−" : "+"}
-            </button>
-          </div>
+          )}
 
           {open && (
             <div className="karte-detail">
               <div className="eyebrow">{t("warumDiesesAuto", lang)}</div>
+              {/* Six columns of figures do not fit a phone. The table scrolls inside
+                  its own container rather than pushing the page sideways. */}
+              <div className="tbl-scroll">
               <table className="tbl">
                 <thead>
                   <tr>
@@ -156,6 +194,7 @@ export const fahrbereitCatalog = createCatalog(
                   </tr>
                 </tbody>
               </table>
+              </div>
 
               <p className="footnote">{props.relativHinweis}</p>
 

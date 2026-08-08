@@ -56,11 +56,25 @@ function A2UIBridge({ onReady }: { onReady: (apply: (m: Record<string, unknown>[
   return null;
 }
 
+type Theme = "light" | "dark";
+
+/**
+ * Light is the default, and a stored choice wins over it.
+ *
+ * Read synchronously during the first render rather than in an effect: applying the
+ * theme after mount paints the wrong ground first, and that flash is exactly what a
+ * theme toggle is supposed to avoid.
+ */
+function ersteDarstellung(): Theme {
+  const gespeichert = localStorage.getItem("fahrbereit.theme");
+  return gespeichert === "dark" ? "dark" : "light";
+}
+
 function Fortschritt({ rows, lang }: { rows: SlotRow[]; lang: Lang }) {
   if (!rows.length) return null;
   return (
     <section className="panel">
-      <div className="eyebrow">{t("interview", lang)}</div>
+      <div className="eyebrow">{t("profil", lang)}</div>
       <table className="tbl">
         <tbody>
           {rows.map((r) => (
@@ -109,6 +123,15 @@ export default function App() {
     const stored = localStorage.getItem("fahrbereit.lang");
     return stored === "en" || stored === "de" ? stored : "en";
   });
+  const [theme, setTheme] = useState<Theme>(ersteDarstellung);
+
+  // The whole theme is CSS variables under [data-theme], so switching is one
+  // attribute write. No reload, no re-render of the surfaces, no reflow of the
+  // A2UI tree.
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem("fahrbereit.theme", theme);
+  }, [theme]);
 
   // English is the default so a reader who does not speak German can audit the
   // ranking without switching first. The choice persists, so a stored preference
@@ -237,31 +260,61 @@ export default function App() {
     <LangContext.Provider value={lang}>
     <A2UIProvider catalog={fahrbereitCatalog}>
       <A2UIBridge onReady={bridgeBereit} />
-      <div className="shell">
-        <aside className="seite">
-          <div className="eyebrow">{t("sprache", lang)}</div>
-          <div className="knopfreihe">
-            {LANGS.map((l) => (
+      <header className="app-header">
+        <div className="app-header-inner">
+          <div className="marke">fahrbereit</div>
+          <div className="marke-claim">{t("markeClaim", lang)}</div>
+
+          <div className="kopf-rechts">
+            <div className="segment" role="group" aria-label={t("sprache", lang)}>
+              {LANGS.map((l) => (
+                <button
+                  key={l}
+                  className={l === lang ? "aktiv" : ""}
+                  onClick={() => setLang(l)}
+                  aria-pressed={l === lang}
+                >
+                  {l === "de" ? "Deutsch" : "English"}
+                </button>
+              ))}
+            </div>
+            <div className="segment" role="group" aria-label={t("darstellung", lang)}>
+              {(["light", "dark"] as Theme[]).map((d) => (
+                <button
+                  key={d}
+                  className={d === theme ? "aktiv" : ""}
+                  onClick={() => setTheme(d)}
+                  aria-pressed={d === theme}
+                >
+                  {t(d === "light" ? "hell" : "dunkel", lang)}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <nav className="app-nav">
+        <div className="app-nav-inner">
+          <div className="nav-gruppe">
+            {(["katalog", "formular", "kasse"] as Schritt[]).map((s) => (
               <button
-                key={l}
-                className={l === lang ? "aktiv" : ""}
-                onClick={() => setLang(l)}
-                aria-pressed={l === lang}
+                key={s}
+                className={`nav-tab ${s === schritt ? "aktiv" : ""}`}
+                onClick={() => setSchritt(s)}
+                aria-current={s === schritt ? "page" : undefined}
               >
-                {l === "de" ? "Deutsch" : "English"}
+                {t(s, lang)}
               </button>
             ))}
           </div>
-          <p className="footnote" style={{ marginTop: 8 }}>{t("datenHinweis", lang)}</p>
 
-          <div className="eyebrow" style={{ marginTop: 22 }}>
-            {t("demoAbkuerzung", lang)}
-          </div>
-          <div className="knopfreihe">
+          <div className="nav-gruppe">
+            <span className="nav-gruppe-titel">{t("demoAbkuerzung", lang)}</span>
             {["familie", "pendler", "umzug"].map((p) => (
               <button
                 key={p}
-                className={p === letztePersona ? "aktiv" : ""}
+                className={`nav-tab ${p === letztePersona ? "aktiv" : ""}`}
                 onClick={() => {
                   setLetztePersona(p);
                   setGewichte(null);
@@ -272,56 +325,63 @@ export default function App() {
               </button>
             ))}
           </div>
-          <p className="footnote">{t("demoHinweis", lang)}</p>
+        </div>
+      </nav>
 
-          <div className="eyebrow" style={{ marginTop: 22 }}>{t("gewichtung", lang)}</div>
-          <div className="knopfreihe spalte">
-            <button
-              onClick={() => {
-                setGewichte(null);
-                persona(letztePersona ?? "familie", null);
-              }}
-            >
-              {t("zuruecksetzen", lang)}
-            </button>
-            {DIMENSIONEN.map((d) => (
-              <button
-                key={d}
-                onClick={() => {
-                  setGewichte({ [d]: 1 });
-                  persona(letztePersona ?? "familie", { [d]: 1 });
-                }}
-              >
-                {t("nur", lang)} {t(`dim.${d}`, lang)}
-              </button>
-            ))}
-          </div>
-          <p className="footnote">{t("gewichtungHinweis", lang)}</p>
-
-          <div className="eyebrow" style={{ marginTop: 22 }}>{t("ablauf", lang)}</div>
-          <div className="knopfreihe spalte">
-            {(["katalog", "formular", "kasse"] as Schritt[]).map((s) => (
-              <button
-                key={s}
-                className={s === schritt ? "aktiv" : ""}
-                onClick={() => setSchritt(s)}
-              >
-                {t(s, lang)}
-              </button>
-            ))}
-          </div>
-
-          <Fortschritt rows={interview} lang={lang} />
-
-          {protokoll.length > 0 && (
+      <div className="shell">
+        <details className="drawer">
+          <summary>{t("einstellungen", lang)}</summary>
+          <div className="drawer-inhalt">
             <section className="panel">
-              <div className="eyebrow">{t("bridgeLog", lang)}</div>
-              <ul className="liste small">
-                {protokoll.map((p, i) => <li key={i}>{p}</li>)}
-              </ul>
+              <div className="eyebrow">{t("gewichtung", lang)}</div>
+              <div className="knopfreihe spalte">
+                <button
+                  className={gewichte === null ? "aktiv" : ""}
+                  onClick={() => {
+                    setGewichte(null);
+                    persona(letztePersona ?? "familie", null);
+                  }}
+                >
+                  {t("zuruecksetzen", lang)}
+                </button>
+                {DIMENSIONEN.map((d) => (
+                  <button
+                    key={d}
+                    className={gewichte && d in gewichte ? "aktiv" : ""}
+                    onClick={() => {
+                      setGewichte({ [d]: 1 });
+                      persona(letztePersona ?? "familie", { [d]: 1 });
+                    }}
+                  >
+                    {t("nur", lang)} {t(`dim.${d}`, lang)}
+                  </button>
+                ))}
+              </div>
+              <p className="footnote">{t("gewichtungHinweis", lang)}</p>
             </section>
-          )}
-        </aside>
+
+            <Fortschritt rows={interview} lang={lang} />
+
+            <section className="panel">
+              <div className="eyebrow">{t("ansicht", lang)}</div>
+              <p className="footnote" style={{ marginTop: 0 }}>
+                {t("einstellungenHinweis", lang)}
+              </p>
+              <p className="footnote">{t("datenHinweis", lang)}</p>
+              <p className="footnote">{t("demoHinweis", lang)}</p>
+              {protokoll.length > 0 && (
+                <>
+                  <div className="eyebrow" style={{ marginTop: 20 }}>
+                    {t("bridgeLog", lang)}
+                  </div>
+                  <ul className="liste small">
+                    {protokoll.map((p, i) => <li key={i}>{p}</li>)}
+                  </ul>
+                </>
+              )}
+            </section>
+          </div>
+        </details>
 
         <main className="haupt">
           <Chat

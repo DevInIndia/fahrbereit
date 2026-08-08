@@ -129,6 +129,28 @@ const STRINGS: Record<string, Record<Lang, string>> = {
 
   laeuft: { de: "läuft", en: "running" },
   agentFortschritt: { de: "Agent", en: "Agent" },
+
+  // Header and drawer chrome.
+  markeClaim: {
+    de: "Fahrzeugsuche mit nachvollziehbarer Rangfolge",
+    en: "Vehicle discovery with a ranking you can check",
+  },
+  darstellung: { de: "Darstellung", en: "Appearance" },
+  hell: { de: "Hell", en: "Light" },
+  dunkel: { de: "Dunkel", en: "Dark" },
+  einstellungen: {
+    de: "Profil, Gewichtung und Filter",
+    en: "Profile, weighting and filters",
+  },
+  einstellungenHinweis: {
+    de: "Alles, was die Rangfolge bestimmt, an einer Stelle und jederzeit änderbar.",
+    en: "Everything that decides the ranking, in one place and changeable at any time.",
+  },
+  profil: { de: "Ihr Profil", en: "Your profile" },
+  ansicht: { de: "Ansicht", en: "View" },
+  empfehlung1: { de: "Empfehlung", en: "Top recommendation" },
+  punkteBasis: { de: "im Feld von", en: "in a field of" },
+  begruendungVerbergen: { de: "Begründung ausblenden", en: "Hide reasoning" },
 };
 
 export function t(key: string, lang: Lang): string {
