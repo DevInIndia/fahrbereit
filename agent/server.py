@@ -1,0 +1,275 @@
+"""HTTP surface for the fahrbereit client.
+
+Two responsibilities, both thin:
+
+1. Serve the A2UI catalogue surface, built from the ranking engine. No ranking,
+   scoring or cost arithmetic happens here.
+2. Host the MCP App bridge. Spike A established that we hold our own MCP client to
+   the formular and kasse servers, fetch the `ui://` resource and hand the HTML to
+   the client, which renders it in a sandboxed iframe. See docs/spike-notes.md.
+
+The agent loop attaches later. This layer exists so the surfaces can be seen and
+driven before the model is in the path.
+"""
+
+from __future__ import annotations
+
+import os
+from typing import Any
+
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+
+from agent.state import (
+    Budget,
+    Dimension,
+    HardConstraints,
+    Intent,
+    InterviewState,
+    Location,
+    UseCaseTag,
+    tags_from_text,
+)
+from agent.surfaces.katalog import build_messages, build_weight_update
+from agent.tools.ranking import rank
+from agent.tools.tco import tco_for_state
+from mcpapps.formular.server import render_for as render_formular
+from mcpapps.kasse.server import build_order, kasse_bestaetigen
+from mcpapps.kasse.server import render_for as render_kasse
+
+app = FastAPI(title="fahrbereit")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # local development only; the container serves same origin
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+# ------------------------------------------------------------------ personas
+
+def _familie() -> InterviewState:
+    text = (
+        "Ich fahre meine zwei Kinder zur Schule und einmal im Monat 300 km zu meinen "
+        "Eltern. Budget etwa 25.000 Euro."
+    )
+    st = InterviewState(session_id="demo-familie")
+    st.intent = st.intent.state(Intent.KAUF)
+    st.use_case_text = st.use_case_text.state(text)
+    st.use_case_tags = st.use_case_tags.infer(
+        tags_from_text(text) + [UseCaseTag.LANGSTRECKE], confidence=0.8
+    )
+    st.budget = st.budget.state(Budget(max_kaufpreis_eur=25_000))
+    st.jahresfahrleistung_km = st.jahresfahrleistung_km.infer(15_000, confidence=0.6)
+    st.constraints_hard = st.constraints_hard.state(
+        HardConstraints(
+            min_sitzplaetze=5, min_kofferraum_liter=400,
+            unfallfrei_erforderlich=True, umweltplakette="grün",
+        )
+    )
+    st.location = st.location.state(Location(plz="80339", ort="München"))
+    return st
+
+
+def _pendler() -> InterviewState:
+    text = "Ich pendle jeden Tag 45 km in die Stadt zur Arbeit. Automatik bitte."
+    st = InterviewState(session_id="demo-pendler")
+    st.intent = st.intent.state(Intent.KAUF)
+    st.use_case_text = st.use_case_text.state(text)
+    st.use_case_tags = st.use_case_tags.infer(tags_from_text(text), confidence=0.85)
+    st.budget = st.budget.state(Budget(max_kaufpreis_eur=32_000))
+    st.jahresfahrleistung_km = st.jahresfahrleistung_km.state(22_000)
+    st.constraints_hard = st.constraints_hard.state(
+        HardConstraints(getriebe="Automatik", umweltplakette="grün", unfallfrei_erforderlich=True)
+    )
+    st.location = st.location.state(Location(plz="10115", ort="Berlin", max_entfernung_km=300))
+    return st
+
+
+def _umzug() -> InterviewState:
+    text = "Ich brauche für ein Wochenende ein Auto für einen Umzug."
+    st = InterviewState(session_id="demo-umzug")
+    st.intent = st.intent.state(Intent.MIETE)
+    st.use_case_text = st.use_case_text.state(text)
+    st.use_case_tags = st.use_case_tags.infer(tags_from_text(text), confidence=0.9)
+    st.budget = st.budget.state(Budget(max_tagessatz_eur=95))
+    st.jahresfahrleistung_km = st.jahresfahrleistung_km.infer(5_000, confidence=0.5)
+    st.constraints_hard = st.constraints_hard.state(HardConstraints(min_kofferraum_liter=550))
+    st.location = st.location.state(Location(plz="20095", ort="Hamburg"))
+    return st
+
+
+PERSONAS = {"familie": _familie, "pendler": _pendler, "umzug": _umzug}
+
+
+class WeightRequest(BaseModel):
+    persona: str = "familie"
+    gewichte: dict[str, float] | None = None
+    limit: int = 6
+
+
+# ------------------------------------------------------------------ routes
+
+
+@app.get("/api/health")
+def health() -> dict[str, Any]:
+    from agent.listing import load_listings
+
+    return {
+        "status": "ok",
+        "listings": len(load_listings()),
+        "personas": sorted(PERSONAS),
+        "payment_provider": os.environ.get("PAYMENT_PROVIDER", "mock"),
+        "simuliert": True,
+    }
+
+
+@app.get("/api/personas")
+def personas() -> list[dict[str, str]]:
+    out = []
+    for name, factory in PERSONAS.items():
+        st = factory()
+        out.append(
+            {
+                "id": name,
+                "beschreibung": st.use_case_text.value or "",
+                "intent": st.effective_intent().value,
+            }
+        )
+    return out
+
+
+@app.post("/api/surface/katalog")
+def katalog(req: WeightRequest) -> dict[str, Any]:
+    """The A2UI catalogue surface, built from the ranking engine."""
+    factory = PERSONAS.get(req.persona)
+    if factory is None:
+        raise HTTPException(404, f"Unbekannte Persona {req.persona!r}")
+
+    state = factory()
+    if req.gewichte:
+        unknown = set(req.gewichte) - {d.value for d in Dimension}
+        if unknown:
+            raise HTTPException(400, f"Unbekannte Dimensionen: {sorted(unknown)}")
+        state.preferences_soft = state.preferences_soft.state(req.gewichte)
+
+    result = rank(state, limit=req.limit, tco_fn=tco_for_state)
+
+    return {
+        "messages": build_messages(result, "Empfehlungen"),
+        "interview": _interview_payload(state),
+        "gewichte": result.gewichte,
+    }
+
+
+@app.post("/api/surface/gewichte")
+def gewichte(req: WeightRequest) -> dict[str, Any]:
+    """Weights only, as an incremental data model update. FR-034."""
+    factory = PERSONAS.get(req.persona)
+    if factory is None:
+        raise HTTPException(404, f"Unbekannte Persona {req.persona!r}")
+    state = factory()
+    if req.gewichte:
+        state.preferences_soft = state.preferences_soft.state(req.gewichte)
+    result = rank(state, limit=req.limit, tco_fn=tco_for_state)
+    return {"messages": build_weight_update(result)}
+
+
+def _interview_payload(state: InterviewState) -> list[dict[str, Any]]:
+    """The slot checklist, with inferred values marked. Feeds the progress panel."""
+    rows = []
+    for name in state.slot_names():
+        slot = state.slot(name)
+        value = slot.value
+        if isinstance(value, list):
+            text = ", ".join(str(getattr(v, "value", v)) for v in value)
+        elif hasattr(value, "model_dump"):
+            text = ", ".join(
+                f"{k}: {v}" for k, v in value.model_dump().items() if v not in (None, False)
+            )
+        elif hasattr(value, "value"):
+            text = str(value.value)
+        else:
+            text = "" if value is None else str(value)
+        rows.append(
+            {
+                "slot": name,
+                "wert": text,
+                "herkunft": slot.provenance.value if slot.provenance else None,
+                "bestaetigt": slot.confirmed,
+                "offen": not slot.is_set,
+            }
+        )
+    return rows
+
+
+# ------------------------------------------------------------------ MCP Apps
+
+
+@app.get("/api/app/formular")
+def app_formular(listing_id: str = "FB-00001", intent: str = "kauf", fahrzeug: str = "") -> dict:
+    """The formular MCP App surface, for the client to render in a sandboxed iframe."""
+    return {
+        "resourceUri": "ui://formular/intake.html",
+        "mimeType": "text/html;profile=mcp-app",
+        "html": render_formular(intent, fahrzeug or listing_id, listing_id),
+    }
+
+
+@app.get("/api/app/kasse")
+def app_kasse(
+    listing_id: str = "FB-00001",
+    fahrzeug: str = "",
+    intent: str = "kauf",
+    betrag_eur: int = 0,
+) -> dict:
+    """The kasse MCP App surface. Simulated throughout."""
+    order = build_order(
+        listing_id,
+        fahrzeug or listing_id,
+        intent,
+        betrag_eur * 100,
+        kaution_cent=50_000 if intent == "miete" else 0,
+        abholort="Hamburg" if intent == "miete" else "",
+        zeitraum="12. bis 14. September" if intent == "miete" else "",
+    )
+    return {
+        "resourceUri": "ui://kasse/checkout.html",
+        "mimeType": "text/html;profile=mcp-app",
+        "html": render_kasse(order),
+    }
+
+
+class BridgeCall(BaseModel):
+    """A tool call proxied from inside a sandboxed app iframe."""
+
+    tool: str
+    args: dict[str, Any] = {}
+
+
+@app.post("/api/app/bridge")
+def app_bridge(call: BridgeCall) -> dict[str, Any]:
+    """The app bridge. Surfaces call their server's tools through here.
+
+    This is the piece we host ourselves rather than delegating to the AG-UI MCP Apps
+    middleware, per the Path 2 decision in docs/spike-notes.md.
+    """
+    from mcpapps.formular.server import formular_absenden, formular_daten
+
+    handlers = {
+        "formular_absenden": formular_absenden,
+        "formular_daten": formular_daten,
+        "kasse_bestaetigen": kasse_bestaetigen,
+    }
+    handler = handlers.get(call.tool)
+    if handler is None:
+        raise HTTPException(404, f"Unbekanntes Werkzeug {call.tool!r}")
+    return {"result": handler(**call.args)}
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
