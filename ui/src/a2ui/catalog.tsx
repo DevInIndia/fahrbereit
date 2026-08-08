@@ -31,112 +31,6 @@ function Bar({ value, max = 100 }: { value: number; max?: number }) {
   );
 }
 
-type LiveCheckResult = {
-  status: "ok" | "unavailable";
-  preis_eur?: number;
-  markt_min_eur?: number;
-  markt_max_eur?: number;
-  delta_eur?: number;
-  hinweis?: string;
-  quellen?: { titel: string; url: string }[];
-};
-
-function LiveMarketCheckButton({ bezeichnung, preis }: { bezeichnung: string; preis: string }) {
-  const lang = useLang();
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<LiveCheckResult | null>(null);
-
-  const performCheck = async () => {
-    if (loading || result) return;
-    setLoading(true);
-    try {
-      const teile = bezeichnung.split(" ");
-      const marke = teile[0] || "";
-      const modell = teile[1] || "";
-      const variante = teile.slice(2).join(" ");
-      const preisNum = parseInt(preis.replace(/\D/g, ""), 10) || 0;
-
-      const res = await fetch("/api/live-market-check", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          marke,
-          modell,
-          variante,
-          preis_eur: preisNum,
-        }),
-      });
-      const data = await res.json();
-      setResult(data);
-    } catch {
-      setResult({ status: "unavailable", hinweis: "Live check unavailable" });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div style={{ marginTop: 16, paddingTop: 12, borderTop: "1px solid var(--border)" }}>
-      <div className="eyebrow" style={{ marginBottom: 6 }}>
-        {lang === "de" ? "Live-Markt-Prüfung (Websuche)" : "Live Market Check (Web Search)"}
-      </div>
-      {!result && !loading && (
-        <button className="knopfreihe" onClick={performCheck} style={{ padding: "6px 12px", fontSize: 12 }}>
-          {lang === "de" ? "Live-Marktpreise prüfen" : "Check Live Market Prices"}
-        </button>
-      )}
-      {loading && (
-        <p className="dim small">{lang === "de" ? "Markt wird gesucht..." : "Searching market..."}</p>
-      )}
-      {result && result.status === "unavailable" && (
-        <p className="dim small" style={{ color: "var(--text-dim)" }}>
-          {lang === "de" ? "Live-Markt-Prüfung nicht verfügbar" : "Live check unavailable"}
-        </p>
-      )}
-      {result && result.status === "ok" && (
-        <div className="small" style={{ display: "grid", gap: 6 }}>
-          {result.markt_min_eur && result.markt_max_eur ? (
-            <div>
-              <strong>{lang === "de" ? "Realer Marktbereich: " : "Observed Market Range: "}</strong>
-              {result.markt_min_eur.toLocaleString()} € - {result.markt_max_eur.toLocaleString()} €
-              {result.delta_eur !== undefined && (
-                <span className="dim" style={{ marginLeft: 8 }}>
-                  ({result.delta_eur >= 0 ? "+" : ""}{result.delta_eur.toLocaleString()} € vs catalogue)
-                </span>
-              )}
-            </div>
-          ) : (
-            <p className="dim">
-              {lang === "de"
-                ? "Suche abgeschlossen. Keine Preisspanne erkannt."
-                : "Search complete. No price range extracted."}
-            </p>
-          )}
-          {result.quellen && result.quellen.length > 0 && (
-            <div>
-              <div className="dim small">{lang === "de" ? "Quellen:" : "Sources:"}</div>
-              <ul className="liste small" style={{ margin: 0, paddingLeft: 16 }}>
-                {result.quellen.map((q, i) => (
-                  <li key={i}>
-                    <a href={q.url} target="_blank" rel="noreferrer" style={{ color: "var(--accent)" }}>
-                      {q.titel}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          <p className="footnote" style={{ marginTop: 4 }}>
-            {lang === "de"
-              ? "Anzeige-Validierung per Websuche. Hat keinen Einfluss auf das Ranking."
-              : "Display-only web search validation. Does not affect ranking."}
-          </p>
-        </div>
-      )}
-    </div>
-  );
-}
-
 export const fahrbereitCatalog = createCatalog(
   fahrbereitDefinitions,
   {
@@ -318,8 +212,6 @@ export const fahrbereitCatalog = createCatalog(
               {props.vergleich ? (
                 <p className="footnote">{t("gegenPlatz2", lang)}: {props.vergleich}</p>
               ) : null}
-
-              {props.rang === 1 && <LiveMarketCheckButton bezeichnung={props.bezeichnung} preis={props.preis} />}
             </div>
           )}
         </article>
