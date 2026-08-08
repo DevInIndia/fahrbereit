@@ -238,14 +238,33 @@ def render_for(
     return _render(intent, fahrzeug, listing_id, i18n.normalise(lang))
 
 
-if __name__ == "__main__":
+def _serve(mcp_server, default_port: int) -> None:
+    """Run this MCP server over streamable HTTP.
+
+    DNS rebinding protection is on by default and rejects any Host header it does not
+    recognise, which under compose means the service name: the server answered every
+    request with 421 Misdirected Request and "Invalid Host header: formular:3001".
+    The allowed hosts therefore have to include the service name the backend dials.
+    """
     import os
 
     import uvicorn
+    from mcp.server.transport_security import TransportSecuritySettings
 
-    uvicorn.run(
-        mcp.streamable_http_app(),
-        host=os.environ.get("HOST", "0.0.0.0"),
-        port=int(os.environ.get("PORT", "3001")),
-        log_level="warning",
+    port = int(os.environ.get("PORT", default_port))
+    service = os.environ.get("MCP_SERVICE_NAME", "")
+    allowed = [f"127.0.0.1:{port}", f"localhost:{port}", f"0.0.0.0:{port}"]
+    if service:
+        allowed += [f"{service}:{port}", service]
+
+    app = mcp_server.streamable_http_app(
+        transport_security=TransportSecuritySettings(
+            allowed_hosts=allowed,
+            allowed_origins=["*"],
+        )
     )
+    uvicorn.run(app, host=os.environ.get("HOST", "0.0.0.0"), port=port, log_level="warning")
+
+
+if __name__ == "__main__":
+    _serve(mcp, 3001)

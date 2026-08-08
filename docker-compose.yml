@@ -15,6 +15,9 @@ services:
     command: python -m mcpapps.formular.server
     environment:
       PORT: "3001"
+      # The MCP server rejects Host headers it does not know, so it has to be told
+      # the name the backend reaches it by on the compose network.
+      MCP_SERVICE_NAME: "formular"
     expose:
       - "3001"
     # Published so the MCP server can be inspected directly with an MCP client.
@@ -34,6 +37,7 @@ services:
     command: python -m mcpapps.kasse.server
     environment:
       PORT: "3002"
+      MCP_SERVICE_NAME: "kasse"
       # The only payment implementation in this repository. There is no real gateway.
       PAYMENT_PROVIDER: "${PAYMENT_PROVIDER:-mock}"
     expose:
