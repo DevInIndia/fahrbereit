@@ -338,8 +338,11 @@ def score_listings(
 
         # Price headroom against the stated budget.
         if ceiling:
+            # Linear in price, so the dimension stays strictly ordered. An earlier
+            # version doubled the headroom, which saturated at 100 for anything under
+            # half the budget and made every cheap car tie.
             headroom = (ceiling - listing.preis_referenz()) / ceiling
-            raw = _clamp(headroom * 200)
+            raw = _clamp(headroom * 100)
             note = f"{listing.preis_referenz():,} EUR bei Budget {ceiling:,} EUR".replace(",", ".")
         else:
             raw = _relative(float(listing.preis_referenz()), min(prices), max(prices))

@@ -89,13 +89,14 @@ def test_seat_constraint_excludes_small_cars(listings):
     assert all(l.sitzplaetze >= 7 for l in survivors)
 
 
-def test_green_badge_requirement_excludes_a_yellow_badge(listings):
+def test_green_badge_requirement_excludes_yellow_badges(listings):
     st = InterviewState()
     st.intent = st.intent.state(Intent.KAUF)
     st.constraints_hard = st.constraints_hard.state(HardConstraints(umweltplakette="gruen"))
     survivors, report = hard_filter(st, listings)
+    yellow = sum(1 for l in listings if l.listing_type == "kauf" and l.umweltplakette != "gruen")
     assert all(l.umweltplakette == "gruen" for l in survivors)
-    assert report.ausgeschlossen.get("umweltplakette", 0) == 1
+    assert report.ausgeschlossen.get("umweltplakette", 0) == yellow
 
 
 def test_rental_intent_returns_only_rentals(listings):
@@ -220,11 +221,32 @@ def test_changing_weights_can_change_the_order(listings):
 
 
 def test_price_weighting_puts_the_cheapest_survivor_first(listings):
+    """Price headroom must stay strictly ordered rather than saturating."""
     st = family_state()
     st.preferences_soft = st.preferences_soft.state({Dimension.PREIS_SPIELRAUM.value: 1.0})
-    result = rank(st, listings, limit=20)
-    prices = [r.listing.preis_referenz() for r in result.empfehlungen]
-    assert prices[0] == min(prices)
+    survivors, _ = hard_filter(st, listings)
+    result = rank(st, listings, limit=len(survivors))
+    assert result.empfehlungen[0].listing.preis_referenz() == min(
+        l.preis_referenz() for l in survivors
+    )
+
+
+def test_price_headroom_does_not_saturate(listings):
+    """Two listings well under budget must still separate on price."""
+    st = family_state()
+    st.preferences_soft = st.preferences_soft.state({Dimension.PREIS_SPIELRAUM.value: 1.0})
+    survivors, _ = hard_filter(st, listings)
+    # Distinct prices only. Two listings at the same price scoring the same is
+    # correct, so including them would test nothing.
+    by_price: dict[int, object] = {}
+    for l in sorted(survivors, key=lambda l: l.preis_referenz()):
+        by_price.setdefault(l.preis_referenz(), l)
+    cheap = list(by_price.values())[:5]
+    assert len(cheap) == 5
+
+    result = rank(st, cheap, limit=5)
+    totals = [r.score.total for r in result.empfehlungen]
+    assert len(set(totals)) == len(totals), f"scores tied where they should differ: {totals}"
 
 
 # ------------------------------------------------------------------ comparison
@@ -239,7 +261,10 @@ def test_the_winner_is_compared_against_the_runner_up(listings):
 
 
 def test_the_last_recommendation_has_nothing_left_to_compare_against(listings):
-    result = rank(family_state(), listings, limit=50)
+    st = family_state()
+    survivors, _ = hard_filter(st, listings)
+    result = rank(st, listings, limit=len(survivors))
+    assert len(result.empfehlungen) == len(survivors)
     assert result.empfehlungen[-1].vergleich is None
 
 
