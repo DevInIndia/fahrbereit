@@ -269,3 +269,53 @@ button.senden {
   padding: 11px 20px;
 }
 button.senden:disabled { background: var(--rule); color: var(--ink-faint); }
+
+/* ------------------------------------------------- live progress surface */
+
+.phasen { display: flex; align-items: center; gap: 0; }
+
+.phase {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink-faint);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.phase-punkt {
+  width: 8px;
+  height: 8px;
+  border: 1px solid var(--rule);
+  background: transparent;
+  flex: none;
+  /* Motion only where it carries a state change: the marker fills as the agent
+     reaches a phase, so the movement means something. */
+  transition: background 220ms linear, border-color 220ms linear;
+}
+.phase.erledigt .phase-punkt { background: var(--ink-faint); border-color: var(--ink-faint); }
+.phase.aktiv .phase-punkt { background: var(--accent); border-color: var(--accent); }
+.phase.aktiv .phase-label { color: var(--accent); }
+.phase.erledigt .phase-label { color: var(--ink-dim); }
+
+.phase-linie { flex: 1; height: 1px; background: var(--rule); min-width: 18px; margin: 0 10px; }
+
+.puls { color: var(--accent); }
+@keyframes fb-puls { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+.puls { animation: fb-puls 1.1s ease-in-out infinite; }
+
+.strom { list-style: none; margin: 0; padding: 0; }
+.strom-schritt {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  padding: 5px 0;
+  font-size: 12px;
+}
+.strom-schritt + .strom-schritt { border-top: 1px solid var(--rule); }
+.strom-punkt { width: 6px; height: 6px; flex: none; background: var(--rule); }
+.strom-schritt.laeuft .strom-punkt { background: var(--accent); animation: fb-puls 1.1s ease-in-out infinite; }
+.strom-schritt.fertig .strom-punkt { background: var(--ink-faint); }
+.strom-schritt.fehler .strom-punkt { background: var(--accent); }
+.strom-label { color: var(--ink); }
+.strom-werkzeug { font-family: "SF Mono", Consolas, monospace; font-size: 11px; margin-left: auto; }

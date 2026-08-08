@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { A2UIProvider, A2UIRenderer, useA2UI } from "@copilotkit/a2ui-renderer";
 import { LangContext, fahrbereitCatalog } from "./a2ui/catalog";
 import { AppFrame } from "./AppFrame";
@@ -25,28 +25,35 @@ type SlotRow = {
 
 type Schritt = "katalog" | "formular" | "kasse";
 
-function Katalog({
-  messages,
-  lang,
-}: {
-  messages: Record<string, unknown>[] | null;
-  lang: Lang;
-}) {
-  const { processMessages, clearSurfaces } = useA2UI();
-
-  useEffect(() => {
-    if (!messages) return;
-    clearSurfaces();
-    // Whoever produced these, the agent or a persona shortcut, speaks A2UI.
-    processMessages(messages);
-  }, [messages, processMessages, clearSurfaces]);
-
+function Katalog({ lang }: { lang: Lang }) {
   return (
     <A2UIRenderer
       surfaceId="fahrbereit-katalog"
       fallback={<p className="dim">{t("wirdAufgebaut", lang)}</p>}
     />
   );
+}
+
+/** The live progress surface. Same catalog, its own surface id. */
+function FortschrittSurface() {
+  return <A2UIRenderer surfaceId="fahrbereit-fortschritt" fallback={null} />;
+}
+
+/**
+ * Hands `processMessages` out of the provider.
+ *
+ * Routing A2UI messages through React state loses them: setState replaces rather
+ * than appends, and several stream events landing in one batch collapse into the
+ * last one, so intermediate progress updates were silently dropped. Applying each
+ * message the moment it arrives is the only way an incremental surface stays
+ * correct.
+ */
+function A2UIBridge({ onReady }: { onReady: (apply: (m: Record<string, unknown>[]) => void) => void }) {
+  const { processMessages } = useA2UI();
+  useEffect(() => {
+    onReady(processMessages);
+  }, [processMessages, onReady]);
+  return null;
 }
 
 function Fortschritt({ rows, lang }: { rows: SlotRow[]; lang: Lang }) {
@@ -94,7 +101,7 @@ export default function App() {
   const [sessionId] = useState(neueSitzung);
   const [verlauf, setVerlauf] = useState<ChatTurn[]>([]);
   const [laeuft, setLaeuft] = useState(false);
-  const [messages, setMessages] = useState<Record<string, unknown>[] | null>(null);
+  const anwenden = useRef<((m: Record<string, unknown>[]) => void) | null>(null);
   const [istMiete, setIstMiete] = useState(false);
   const [lang, setLang] = useState<Lang>(() => {
     const stored = localStorage.getItem("fahrbereit.lang");
@@ -113,34 +120,72 @@ export default function App() {
     setProtokoll((p) => [...p, `${tool} -> ${result}`.slice(0, 240)]);
   }, []);
 
-  // A conversational turn. The agent decides when to rank; if it did, the A2UI
-  // messages ride back on the same response and the surface updates from them.
+  // Every A2UI message, from the stream or from a persona shortcut, lands here and
+  // is applied immediately. No React state in the path, so nothing is batched away.
+  const onSurface = useCallback((msgs: Record<string, unknown>[]) => {
+    if (msgs && msgs.length) anwenden.current?.(msgs);
+  }, []);
+
+  const bridgeBereit = useCallback((apply: (m: Record<string, unknown>[]) => void) => {
+    anwenden.current = apply;
+  }, []);
+
+  // A conversational turn, streamed. Each event carries incremental A2UI updates
+  // that are applied the moment they arrive, which is what makes the progress
+  // surface live rather than a summary printed afterwards.
   const senden = useCallback(
     async (text: string) => {
       setVerlauf((v) => [...v, { rolle: "user", text }]);
       setLaeuft(true);
+      setSchritt("katalog");
       try {
-        const res = await fetch("/api/chat", {
+        const res = await fetch("/api/chat/stream", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ session_id: sessionId, nachricht: text, lang }),
         });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        setVerlauf((v) => [
-          ...v,
-          {
-            rolle: "agent",
-            text: data.antwort || "...",
-            werkzeuge: data.werkzeuge,
-            modellaufrufe: data.modellaufrufe,
-            gedrosselt: data.gedrosselt,
-          },
-        ]);
-        if (data.interview) setInterview(data.interview);
-        if (data.messages) {
-          setMessages(data.messages);
-          setSchritt("katalog");
+        if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let puffer = "";
+
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          puffer += decoder.decode(value, { stream: true });
+
+          // Server sent events are separated by a blank line.
+          let grenze;
+          while ((grenze = puffer.indexOf("\n\n")) !== -1) {
+            const roh = puffer.slice(0, grenze);
+            puffer = puffer.slice(grenze + 2);
+
+            const zeilen = roh.split("\n");
+            const event = zeilen.find((z) => z.startsWith("event: "))?.slice(7) ?? "";
+            const daten = zeilen.find((z) => z.startsWith("data: "))?.slice(6) ?? "{}";
+            let nutzlast: Record<string, unknown>;
+            try {
+              nutzlast = JSON.parse(daten);
+            } catch {
+              continue;
+            }
+
+            if (event === "a2ui" || event === "katalog") {
+              onSurface(nutzlast.messages as Record<string, unknown>[]);
+            } else if (event === "fertig") {
+              setVerlauf((v) => [
+                ...v,
+                {
+                  rolle: "agent",
+                  text: (nutzlast.antwort as string) || "...",
+                  werkzeuge: nutzlast.werkzeuge as string[],
+                  modellaufrufe: nutzlast.modellaufrufe as number,
+                  gedrosselt: nutzlast.gedrosselt as boolean,
+                },
+              ]);
+            }
+          }
         }
       } catch (e) {
         setVerlauf((v) => [
@@ -151,12 +196,11 @@ export default function App() {
         setLaeuft(false);
       }
     },
-    [sessionId, lang],
+    [sessionId, lang, onSurface],
   );
 
   const zuruecksetzen = useCallback(async () => {
     setVerlauf([]);
-    setMessages(null);
     setInterview([]);
     await fetch("/api/chat/reset", {
       method: "POST",
@@ -176,11 +220,11 @@ export default function App() {
         body: JSON.stringify({ persona: name, gewichte: gew, limit: 6, lang }),
       });
       const data = await res.json();
-      setMessages(data.messages);
+      onSurface(data.messages);
       setInterview(data.interview);
       setSchritt("katalog");
     },
-    [lang],
+    [lang, onSurface],
   );
 
   const [letztePersona, setLetztePersona] = useState<string | null>(null);
@@ -190,6 +234,7 @@ export default function App() {
   return (
     <LangContext.Provider value={lang}>
     <A2UIProvider catalog={fahrbereitCatalog}>
+      <A2UIBridge onReady={bridgeBereit} />
       <div className="shell">
         <aside className="seite">
           <div className="eyebrow">{t("sprache", lang)}</div>
@@ -285,7 +330,9 @@ export default function App() {
             onZuruecksetzen={zuruecksetzen}
           />
 
-          {schritt === "katalog" && <Katalog messages={messages} lang={lang} />}
+          <FortschrittSurface />
+
+          {schritt === "katalog" && <Katalog lang={lang} />}
           {schritt === "formular" && (
             <AppFrame
               title={t("anfrageformular", lang)}

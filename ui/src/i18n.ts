@@ -117,6 +117,9 @@ const STRINGS: Record<string, Record<Lang, string>> = {
   "persona.familie": { de: "Familie", en: "Family" },
   "persona.pendler": { de: "Pendler", en: "Commuter" },
   "persona.umzug": { de: "Umzug", en: "Moving house" },
+
+  laeuft: { de: "läuft", en: "running" },
+  agentFortschritt: { de: "Agent", en: "Agent" },
 };
 
 export function t(key: string, lang: Lang): string {

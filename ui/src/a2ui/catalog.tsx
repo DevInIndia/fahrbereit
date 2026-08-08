@@ -217,6 +217,117 @@ export const fahrbereitCatalog = createCatalog(
         </article>
       );
     },
+
+    // ---------------------------------------------------- progress surface
+
+    PhasenAnzeige: ({ props }) => (
+      <section className="panel">
+        <div className="phasen">
+          {props.phasen.map((p, i) => (
+            <div
+              key={p.name}
+              className={`phase ${p.aktiv ? "aktiv" : ""} ${p.erledigt ? "erledigt" : ""}`}
+            >
+              <span className="phase-punkt" />
+              <span className="phase-label">{p.label}</span>
+              {i < props.phasen.length - 1 && <span className="phase-linie" />}
+            </div>
+          ))}
+        </div>
+      </section>
+    ),
+
+    SlotCheckliste: ({ props }) => {
+      const lang = useLang();
+      return (
+        <section className="panel">
+          <div className="eyebrow">
+            {t("interview", lang)}
+            <span className="dim">
+              {" "}
+              {props.gefuellt}/{props.gesamt}
+            </span>
+          </div>
+          <table className="tbl">
+            <tbody>
+              {props.zeilen.map((z) => (
+                <tr key={z.label}>
+                  <td className={z.offen ? "dim" : ""} style={{ width: "38%" }}>
+                    {z.offen ? "○" : "●"} {z.label}
+                  </td>
+                  <td className="small">
+                    {z.wert || <span className="dim">{t("offen", lang)}</span>}
+                  </td>
+                  <td style={{ width: 104 }}>
+                    {z.herkunft === "inferred" ? (
+                      <span className="tag inferred">{t("abgeleitet", lang)}</span>
+                    ) : z.herkunft === "stated" ? (
+                      <span className="tag stated">{t("gesagt", lang)}</span>
+                    ) : null}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {props.hinweis ? <p className="footnote">{props.hinweis}</p> : null}
+        </section>
+      );
+    },
+
+    SuchStatus: ({ props }) => {
+      const lang = useLang();
+      return (
+        <section className="panel">
+          <div className="eyebrow">
+            {t("harteFilter", lang)}
+            {props.aktiv && <span className="puls"> {t("laeuft", lang)}</span>}
+          </div>
+          {props.gesamt === 0 ? (
+            <p className="dim small">{props.hinweis}</p>
+          ) : (
+            <table className="tbl">
+              <tbody>
+                <tr>
+                  <td>{t("geprueft", lang)}</td>
+                  <td className="num">{num(props.gesamt, lang)}</td>
+                </tr>
+                {props.ausgeschlossen.map((row) => (
+                  <tr key={row.grund}>
+                    <td className="dim">
+                      {t("ausgeschlossenPrefix", lang)}: {row.grund}
+                    </td>
+                    <td className="num dim">−{num(row.anzahl, lang)}</td>
+                  </tr>
+                ))}
+                <tr className="total">
+                  <td>{t("verblieben", lang)}</td>
+                  <td className="num">{num(props.uebrig, lang)}</td>
+                </tr>
+              </tbody>
+            </table>
+          )}
+        </section>
+      );
+    },
+
+    WerkzeugStrom: ({ props }) => (
+      <section className="panel">
+        <div className="eyebrow">{props.titel}</div>
+        {props.schritte.length === 0 ? (
+          <p className="dim small">-</p>
+        ) : (
+          <ol className="strom">
+            {props.schritte.map((s, i) => (
+              <li key={i} className={`strom-schritt ${s.status}`}>
+                <span className="strom-punkt" />
+                <span className="strom-label">{s.label}</span>
+                <span className="strom-werkzeug dim">{s.werkzeug}</span>
+              </li>
+            ))}
+          </ol>
+        )}
+      </section>
+    ),
   },
   { catalogId: "fahrbereit/v1", includeBasicCatalog: true },
 );

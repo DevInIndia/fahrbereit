@@ -18,6 +18,7 @@ import os
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -35,6 +36,7 @@ from agent.state import (
     tags_from_text,
 )
 from agent.session import ranking_for, run_turn, state_for
+from agent.streaming import stream_turn
 from agent.store import STORE
 from agent.surfaces.katalog import build_messages, build_weight_update
 from agent.tools.ranking import rank
@@ -299,6 +301,31 @@ def chat(req: ChatRequest) -> dict[str, Any]:
         "interview": _interview_payload(state, lang),
         "lang": lang,
     }
+
+
+@app.post("/api/chat/stream")
+def chat_stream(req: ChatRequest) -> StreamingResponse:
+    """One conversational turn, streamed.
+
+    Emits phase changes, tool calls and filter counts as they happen, each as an
+    incremental A2UI update to the progress surface, then the reply and the catalogue
+    at the end. No extra model calls: everything streamed here is already known
+    server side at the moment it occurs.
+    """
+    if not req.nachricht.strip():
+        raise HTTPException(400, "Leere Nachricht")
+
+    return StreamingResponse(
+        stream_turn(req.session_id, req.nachricht.strip(), req.lang),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            # nginx buffers proxied responses by default, which would hold every
+            # event back until the turn finished and defeat the point.
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @app.post("/api/chat/reset")
