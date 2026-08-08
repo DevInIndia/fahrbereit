@@ -1,95 +1,13 @@
 {
-  "erzeugt": "2026-08-08T17:43:15+00:00",
-  "modus": "live",
+  "erzeugt": "2026-08-08T18:30:31+00:00",
+  "modus": "offline",
   "personas": 8,
   "ergebnisse": [
     {
       "persona": "familie_kauf",
-      "modus": "live",
+      "modus": "offline",
       "lang": "de",
-      "slots": {
-        "erwartet": 8,
-        "getroffen": 7,
-        "fehlend": [
-          "use_case_tags"
-        ],
-        "falsch": [],
-        "anteil": 0.875
-      },
-      "constraints": {
-        "geprueft": 3,
-        "verstoesse": 0,
-        "details": [],
-        "erwartet_leer": false,
-        "leer_korrekt": null
-      },
-      "faithfulness": {
-        "zahlen_im_text": 10,
-        "zahlen_belegt": 10,
-        "erfundene_zahlen": [],
-        "richter_punktzahl": 1.0,
-        "richter_begruendung": "Alle im Antworttext genannten Informationen zu den Fahrzeugen stimmen exakt mit den bereitgestellten Daten überein.",
-        "zahlen_anteil": 1.0
-      },
-      "zuege": 3,
-      "modellaufrufe": 9,
-      "sekunden": 11.5,
-      "gedrosselt": false,
-      "empfehlungen": [
-        "FB-00144",
-        "FB-00134",
-        "FB-00131"
-      ],
-      "antwort": "Hier sind die passenden Angebote aus unserem Bestand, die automatisch für euch zusammengestellt wurden:\n\n1. **Volkswagen Passat Variant 121 kW Trend [FB-00144]** für 17.750 EUR (Erstzulassung 2021-05, 117.768 km).\n2. **Renault Megane Grandtour 137 kW Life [FB-00134]** für 14.760 EUR (Erstzulassung 2020-04, 123.500 km).\n\nDie komplette Übersicht seht ihr direkt in der Ergebnisliste. Welches der Fahrzeuge möchtet ihr näher betrachten?"
-    },
-    {
-      "persona": "pendler_elektro",
-      "modus": "live",
-      "lang": "de",
-      "slots": {
-        "erwartet": 7,
-        "getroffen": 7,
-        "fehlend": [],
-        "falsch": [],
-        "anteil": 1.0
-      },
-      "constraints": {
-        "geprueft": 3,
-        "verstoesse": 0,
-        "details": [],
-        "erwartet_leer": false,
-        "leer_korrekt": null
-      },
-      "faithfulness": {
-        "zahlen_im_text": 6,
-        "zahlen_belegt": 6,
-        "erfundene_zahlen": [],
-        "richter_punktzahl": 1.0,
-        "richter_begruendung": "Alle Angaben zu den Fahrzeugen, Preisen und den Gesamtkosten sind konsistent mit den bereitgestellten Daten.",
-        "zahlen_anteil": 1.0
-      },
-      "zuege": 3,
-      "modellaufrufe": 9,
-      "sekunden": 10.4,
-      "gedrosselt": false,
-      "empfehlungen": [
-        "FB-00052",
-        "FB-00269",
-        "FB-00070"
-      ],
-      "antwort": "Die vollständige Liste wurde dir soeben angezeigt. Der Volkswagen ID.3 109 kW Life [FB-00052] führt die Liste mit einem Preis von 10.970 EUR und den besten Gesamtkosten über fünf Jahre an. Auf dem zweiten Platz liegt der Volkswagen ID.3 128 kW Elegance [FB-00269] für 14.570 EUR. \n\nMöchtest du zu einem dieser Fahrzeuge noch etwas Bestimmtes wissen?"
-    },
-    {
-      "persona": "stadt_klein",
-      "modus": "live",
-      "lang": "de",
-      "slots": {
-        "erwartet": 6,
-        "getroffen": 6,
-        "fehlend": [],
-        "falsch": [],
-        "anteil": 1.0
-      },
+      "slots": null,
       "constraints": {
         "geprueft": 5,
         "verstoesse": 0,
@@ -97,40 +15,72 @@
         "erwartet_leer": false,
         "leer_korrekt": null
       },
-      "faithfulness": {
-        "zahlen_im_text": 8,
-        "zahlen_belegt": 7,
-        "erfundene_zahlen": [
-          "500"
-        ],
-        "richter_punktzahl": 1.0,
-        "richter_begruendung": "Alle genannten Fahrzeuge, Preise und Punktzahlen stimmen exakt mit den bereitgestellten Daten überein und die Kriterien des Kunden werden erfüllt.",
-        "zahlen_anteil": 0.875
+      "faithfulness": null,
+      "zuege": 0,
+      "modellaufrufe": 0,
+      "sekunden": 0.015,
+      "empfehlungen": [
+        "FB-00228",
+        "FB-00144",
+        "FB-00209",
+        "FB-00131",
+        "FB-00199"
+      ],
+      "antwort": ""
+    },
+    {
+      "persona": "pendler_elektro",
+      "modus": "offline",
+      "lang": "de",
+      "slots": null,
+      "constraints": {
+        "geprueft": 3,
+        "verstoesse": 0,
+        "details": [],
+        "erwartet_leer": false,
+        "leer_korrekt": null
       },
-      "zuege": 3,
-      "modellaufrufe": 9,
-      "sekunden": 10.2,
-      "gedrosselt": false,
+      "faithfulness": null,
+      "zuege": 0,
+      "modellaufrufe": 0,
+      "sekunden": 0.001,
+      "empfehlungen": [
+        "FB-00052",
+        "FB-00269",
+        "FB-00070"
+      ],
+      "antwort": ""
+    },
+    {
+      "persona": "stadt_klein",
+      "modus": "offline",
+      "lang": "de",
+      "slots": null,
+      "constraints": {
+        "geprueft": 5,
+        "verstoesse": 0,
+        "details": [],
+        "erwartet_leer": false,
+        "leer_korrekt": null
+      },
+      "faithfulness": null,
+      "zuege": 0,
+      "modellaufrufe": 0,
+      "sekunden": 0.005,
       "empfehlungen": [
         "FB-00013",
         "FB-00012",
         "FB-00184",
-        "FB-00249",
-        "FB-00002"
+        "FB-00270",
+        "FB-00249"
       ],
-      "antwort": "Hier sind die passenden Empfehlungen für dich:\n\nAn erster Stelle steht der Fiat 500 41 kW Basis [FB-00013] für 9.330 EUR, der mit 85.5 Punkten bewertet wurde. Auf Platz 2 folgt der Citroen C1 41 kW Basis [FB-00012] für 5.480 EUR mit 82.3 Punkten. Beide erfüllen all deine Kriterien und eignen sich hervorragend für den Stadtverkehr in Köln."
+      "antwort": ""
     },
     {
       "persona": "umzug_miete",
-      "modus": "live",
+      "modus": "offline",
       "lang": "de",
-      "slots": {
-        "erwartet": 6,
-        "getroffen": 6,
-        "fehlend": [],
-        "falsch": [],
-        "anteil": 1.0
-      },
+      "slots": null,
       "constraints": {
         "geprueft": 1,
         "verstoesse": 0,
@@ -138,38 +88,20 @@
         "erwartet_leer": false,
         "leer_korrekt": null
       },
-      "faithfulness": {
-        "zahlen_im_text": 10,
-        "zahlen_belegt": 9,
-        "erfundene_zahlen": [
-          "550"
-        ],
-        "richter_punktzahl": 1.0,
-        "richter_begruendung": "Alle Angaben in der Antwort basieren direkt auf den bereitgestellten Daten oder den Aussagen des Kunden.",
-        "zahlen_anteil": 0.9
-      },
-      "zuege": 3,
-      "modellaufrufe": 6,
-      "sekunden": 7.6,
-      "gedrosselt": false,
+      "faithfulness": null,
+      "zuege": 0,
+      "modellaufrufe": 0,
+      "sekunden": 0.001,
       "empfehlungen": [
         "FB-00157"
       ],
-      "antwort": "Hier ist das passende Angebot aus dem Bestand:\n\n1. **Kia Carnival 131 kW Style** [FB-00157] – 80 EUR / Tag (Mietkosten 3 Tage: 349 EUR)\n   - Ladevolumen von 698 Litern.\n\nMehr Angebote passen leider nicht gleichzeitig zu deinem Budget von maximal 95 Euro am Tag, der Mietdauer von 3 Tagen, dem Mindest-Ladevolumen von 550 Litern und dem Standort in Hamburg (20095). \n\nMöchtest du das Fahrzeug für deinen Umzug buchen oder noch etwas anpassen?"
+      "antwort": ""
     },
     {
       "persona": "wochenende_miete",
-      "modus": "live",
+      "modus": "offline",
       "lang": "en",
-      "slots": {
-        "erwartet": 6,
-        "getroffen": 5,
-        "fehlend": [
-          "use_case_tags"
-        ],
-        "falsch": [],
-        "anteil": 0.833
-      },
+      "slots": null,
       "constraints": {
         "geprueft": 3,
         "verstoesse": 0,
@@ -177,38 +109,22 @@
         "erwartet_leer": false,
         "leer_korrekt": null
       },
-      "faithfulness": {
-        "zahlen_im_text": 7,
-        "zahlen_belegt": 7,
-        "erfundene_zahlen": [],
-        "richter_punktzahl": 1.0,
-        "richter_begruendung": "All claims in the reply are directly supported by the provided data, with a negligible rounding of the score.",
-        "zahlen_anteil": 1.0
-      },
-      "zuege": 3,
-      "modellaufrufe": 9,
-      "sekunden": 10.0,
-      "gedrosselt": false,
+      "faithfulness": null,
+      "zuege": 0,
+      "modellaufrufe": 0,
+      "sekunden": 0.001,
       "empfehlungen": [
         "FB-00147",
         "FB-00241",
         "FB-00200"
       ],
-      "antwort": "The full list is displayed to you above. The top recommendation is the Opel Astra Sports Tourer 121 kW Trend [FB-00147] at 60 EUR per day, scoring 76.2 points, with a first registration of November 2024 and 23,101 km. The second vehicle is the Honda Civic 118 kW Style [FB-00241] at 60 EUR per day. \n\nLet me know if you would like to explore any of these further!"
+      "antwort": ""
     },
     {
       "persona": "gewerblich_kauf",
-      "modus": "live",
+      "modus": "offline",
       "lang": "de",
-      "slots": {
-        "erwartet": 7,
-        "getroffen": 6,
-        "fehlend": [
-          "use_case_tags"
-        ],
-        "falsch": [],
-        "anteil": 0.857
-      },
+      "slots": null,
       "constraints": {
         "geprueft": 5,
         "verstoesse": 0,
@@ -216,81 +132,49 @@
         "erwartet_leer": false,
         "leer_korrekt": null
       },
-      "faithfulness": {
-        "zahlen_im_text": 5,
-        "zahlen_belegt": 4,
-        "erfundene_zahlen": [
-          "500"
-        ],
-        "richter_punktzahl": 1.0,
-        "richter_begruendung": "Alle Angaben zu den Fahrzeugen, deren Punktzahlen und der Erfüllung der Kundenanforderungen sind durch die Daten belegt.",
-        "zahlen_anteil": 0.8
-      },
-      "zuege": 3,
-      "modellaufrufe": 8,
-      "sekunden": 9.1,
-      "gedrosselt": false,
+      "faithfulness": null,
+      "zuege": 0,
+      "modellaufrufe": 0,
+      "sekunden": 0.004,
       "empfehlungen": [
         "FB-00013",
         "FB-00270",
         "FB-00014",
-        "FB-00217",
-        "FB-00012"
+        "FB-00055",
+        "FB-00047"
       ],
-      "antwort": "An erster Stelle empfehle ich Ihnen den Fiat 500 41 kW Basis [FB-00013] mit 84.5 Punkten, gefolgt vom Seat Mii 46 kW Trend [FB-00270] mit 79.4 Punkten. Beide Fahrzeuge passen genau in Ihr Budget und erfüllen Ihre Anforderungen an Kilometerstand und Getriebe.\n\nDie vollständige Liste wird Ihnen direkt angezeigt. Welches dieser Modelle spricht Sie am meisten an?"
+      "antwort": ""
     },
     {
       "persona": "langstrecke_kauf",
-      "modus": "live",
+      "modus": "offline",
       "lang": "en",
-      "slots": {
-        "erwartet": 7,
-        "getroffen": 6,
-        "fehlend": [
-          "use_case_tags"
-        ],
-        "falsch": [],
-        "anteil": 0.857
-      },
+      "slots": null,
       "constraints": {
-        "geprueft": 3,
+        "geprueft": 5,
         "verstoesse": 0,
         "details": [],
         "erwartet_leer": false,
         "leer_korrekt": null
       },
-      "faithfulness": {
-        "zahlen_im_text": 13,
-        "zahlen_belegt": 12,
-        "erfundene_zahlen": [
-          "200"
-        ],
-        "richter_punktzahl": 1.0,
-        "richter_begruendung": "All claims and figures in the reply are directly supported by the provided data.",
-        "zahlen_anteil": 0.923
-      },
-      "zuege": 3,
-      "modellaufrufe": 8,
-      "sekunden": 9.0,
-      "gedrosselt": false,
+      "faithfulness": null,
+      "zuege": 0,
+      "modellaufrufe": 0,
+      "sekunden": 0.004,
       "empfehlungen": [
-        "FB-00132",
-        "FB-00278",
-        "FB-00234"
+        "FB-00270",
+        "FB-00034",
+        "FB-00242",
+        "FB-00217",
+        "FB-00229"
       ],
-      "antwort": "Here are the matching diesel estates:\n\n1. **Opel Astra Sports Tourer 137 kW Life** [FB-00132] – 7,930 EUR (total cost over five years: 29,458 EUR)\n2. **Mercedes-Benz C 200 T 105 kW Basis** [FB-00278] – 13,860 EUR (total cost over five years: 29,712 EUR)\n3. **Kia Ceed SW 185 kW Sport** [FB-00234] – 18,730 EUR (total cost over five years: 37,570 EUR)\n\nThe full list is shown above. Let me know if you would like to explore any of these options in detail!"
+      "antwort": ""
     },
     {
       "persona": "budget_unmoeglich",
-      "modus": "live",
+      "modus": "offline",
       "lang": "de",
-      "slots": {
-        "erwartet": 7,
-        "getroffen": 7,
-        "fehlend": [],
-        "falsch": [],
-        "anteil": 1.0
-      },
+      "slots": null,
       "constraints": {
         "geprueft": 0,
         "verstoesse": 0,
@@ -298,20 +182,12 @@
         "erwartet_leer": true,
         "leer_korrekt": true
       },
-      "faithfulness": {
-        "zahlen_im_text": 3,
-        "zahlen_belegt": 3,
-        "erfundene_zahlen": [],
-        "richter_punktzahl": 1.0,
-        "richter_begruendung": "Alle faktischen Aussagen im Antworttext finden sich direkt in den bereitgestellten Daten wieder.",
-        "zahlen_anteil": 1.0
-      },
-      "zuege": 3,
-      "modellaufrufe": 10,
-      "sekunden": 11.3,
-      "gedrosselt": false,
+      "faithfulness": null,
+      "zuege": 0,
+      "modellaufrufe": 0,
+      "sekunden": 0.0,
       "empfehlungen": [],
-      "antwort": "Es gibt leider nach wie vor kein Angebot, das alle deine Kriterien erfüllt (280 geprüft, 0 übrig). Der größte Ausschlussgrund ist die Fahrzeugkategorie (202 Angebote). \n\nMöchtest du die Fahrzeugkategorie oder dein Budget anpassen, damit wir passende Fahrzeuge finden können?"
+      "antwort": ""
     }
   ]
 }
