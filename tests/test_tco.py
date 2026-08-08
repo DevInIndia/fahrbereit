@@ -23,9 +23,9 @@ def make(**overrides) -> Listing:
         kilometerstand=50_000, leistung_kw=96, leistung_ps=130, hubraum_ccm=1_498,
         leermasse_kg=1_285, getriebe="Schaltgetriebe", kraftstoff="Benzin",
         verbrauch_l_100km=5.8, verbrauch_kwh_100km=None, co2_g_km=132,
-        schadstoffklasse="Euro 6d", umweltplakette="gruen", hu_faellig="2027-06",
+        schadstoffklasse="Euro 6d", umweltplakette="grün", hu_faellig="2027-06",
         vorbesitzer=1, unfallfrei=True, sitzplaetze=5, kofferraum_liter=380,
-        haendler="Autohaus Test", standort_plz="80339", standort_ort="Muenchen",
+        haendler="Autohaus Test", standort_plz="80339", standort_ort="München",
         preis_eur=21_490, mwst_ausweisbar=True,
     )
     base.update(overrides)
@@ -139,7 +139,7 @@ def test_electric_is_taxed_on_mass_once_the_exemption_expires():
         STICHTAG,
     )
     assert tax > 0
-    assert "Ermaessigung" in note
+    assert "Ermäßigung" in note
 
 
 def test_the_mass_rate_carries_the_fifty_percent_reduction():
@@ -229,7 +229,7 @@ def test_every_listing_in_the_dataset_produces_a_sane_total():
 def test_the_estimate_disclaimer_is_always_present():
     """Tax is exact, the rest is estimated. The interface must never blur that."""
     tco = cost_of_ownership(make(), 15_000, STICHTAG)
-    assert "Schaetzungen" in tco.schaetzung_hinweis
+    assert "Schätzungen" in tco.schaetzung_hinweis
     assert "KraftStG" in tco.schaetzung_hinweis
 
 

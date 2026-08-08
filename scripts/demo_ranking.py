@@ -32,6 +32,26 @@ from agent.tools.tco import cost_of_ownership, tco_for_state
 
 RULE = "-" * 78
 
+# Terminal fallback only. Proper umlauts live in the data and in every user facing
+# string; this maps them down solely when the console encoding cannot render them,
+# which on Windows means a cp1252 or cp437 code page. Nothing outside this print
+# layer ever sees a transliterated form, and the web interface never uses it.
+_FALLBACK = str.maketrans(
+    {"ä": "ae", "ö": "oe", "ü": "ue", "Ä": "Ae", "Ö": "Oe", "Ü": "Ue", "ß": "ss"}
+)
+
+
+def _console_supports_utf8() -> bool:
+    encoding = (getattr(sys.stdout, "encoding", None) or "").lower()
+    return "utf" in encoding
+
+
+def say(text: str = "") -> None:
+    """Print, degrading to transliteration only if the console cannot cope."""
+    if not _console_supports_utf8():
+        text = text.translate(_FALLBACK)
+    print(text)
+
 
 def euro(value: int | float | None) -> str:
     if value is None:
@@ -66,11 +86,11 @@ def persona_familie() -> tuple[str, InterviewState]:
     st.constraints_hard = st.constraints_hard.state(
         HardConstraints(
             min_sitzplaetze=5, min_kofferraum_liter=400,
-            unfallfrei_erforderlich=True, umweltplakette="gruen",
+            unfallfrei_erforderlich=True, umweltplakette="grün",
         )
     )
-    st.location = st.location.state(Location(plz="80339", ort="Muenchen"))
-    return "Familie, zwei Kinder, Muenchen", st
+    st.location = st.location.state(Location(plz="80339", ort="München"))
+    return "Familie, zwei Kinder, München", st
 
 
 def persona_pendler() -> tuple[str, InterviewState]:
@@ -82,14 +102,14 @@ def persona_pendler() -> tuple[str, InterviewState]:
     st.budget = st.budget.state(Budget(max_kaufpreis_eur=32_000))
     st.jahresfahrleistung_km = st.jahresfahrleistung_km.state(22_000)
     st.constraints_hard = st.constraints_hard.state(
-        HardConstraints(getriebe="Automatik", umweltplakette="gruen", unfallfrei_erforderlich=True)
+        HardConstraints(getriebe="Automatik", umweltplakette="grün", unfallfrei_erforderlich=True)
     )
     st.location = st.location.state(Location(plz="10115", ort="Berlin", max_entfernung_km=300))
     return "Pendler, 22.000 km im Jahr, Berlin", st
 
 
 def persona_umzug() -> tuple[str, InterviewState]:
-    text = "Ich brauche fuer ein Wochenende ein Auto fuer einen Umzug."
+    text = "Ich brauche für ein Wochenende ein Auto für einen Umzug."
     st = InterviewState(session_id="demo-umzug")
     st.intent = st.intent.state(Intent.MIETE)
     st.use_case_text = st.use_case_text.state(text)
@@ -114,8 +134,8 @@ PERSONAS = {
 
 
 def print_interview(state: InterviewState) -> None:
-    print("INTERVIEW")
-    print(RULE)
+    say("INTERVIEW")
+    say(RULE)
     for name, slot in state.filled_slots().items():
         mark = {"stated": "gesagt", "inferred": "abgeleitet", "default": "Standard"}[
             slot.provenance.value
@@ -129,88 +149,88 @@ def print_interview(state: InterviewState) -> None:
             )
         elif hasattr(value, "value"):
             value = value.value
-        flag = " (zu bestaetigen)" if slot.needs_confirmation else ""
-        print(f"  {name:<24} {str(value)[:44]:<44} [{mark}]{flag}")
+        flag = " (zu bestätigen)" if slot.needs_confirmation else ""
+        say(f"  {name:<24} {str(value)[:44]:<44} [{mark}]{flag}")
     missing = state.missing_slots()
     if missing:
-        print(f"\n  offen: {', '.join(missing)}")
-    print()
+        say(f"\n  offen: {', '.join(missing)}")
+    say()
 
 
 def print_filter(result) -> None:
-    print("HARTE FILTER")
-    print(RULE)
-    print(f"  {result.report.gesamt} Angebote geprueft")
+    say("HARTE FILTER")
+    say(RULE)
+    say(f"  {result.report.gesamt} Angebote geprüft")
     for key, count in result.report.ausgeschlossen.items():
-        print(f"    minus {count:>4}  {CONSTRAINT_LABELS.get(key, key)}")
-    print(f"  {result.report.uebrig} verblieben\n")
+        say(f"    minus {count:>4}  {CONSTRAINT_LABELS.get(key, key)}")
+    say(f"  {result.report.uebrig} verblieben\n")
 
 
 def print_weights(result) -> None:
-    print("GEWICHTUNG aus dem Interview")
-    print(RULE)
+    say("GEWICHTUNG aus dem Interview")
+    say(RULE)
     for name, weight in sorted(result.gewichte.items(), key=lambda kv: -kv[1]):
-        print(f"  {name:<22} {weight:>6.1%}  {bar(weight * 100 / max(result.gewichte.values()))}")
-    print()
+        say(f"  {name:<22} {weight:>6.1%}  {bar(weight * 100 / max(result.gewichte.values()))}")
+    say()
 
 
 def print_ranking(result, state: InterviewState) -> None:
-    print("RANGLISTE")
-    print(RULE)
+    say("RANGLISTE")
+    say(RULE)
     unit = "EUR/Tag" if state.effective_intent() is Intent.MIETE else "EUR"
-    print(f"  {'#':<3}{'Fahrzeug':<40}{'Punkte':>8}{'Preis':>12} {unit}")
+    say(f"  {'#':<3}{'Fahrzeug':<40}{'Punkte':>8}{'Preis':>12} {unit}")
     for rec in result.empfehlungen:
-        print(
+        say(
             f"  {rec.rang:<3}{rec.listing.bezeichnung[:38]:<40}"
             f"{rec.score.total:>8.1f}{euro(rec.listing.preis_referenz()):>12}"
         )
-    print()
+    say()
 
 
 def print_winner(result, state: InterviewState) -> None:
     top = result.empfehlungen[0]
     listing = top.listing
-    print("WARUM DIESES AUTO")
-    print(RULE)
-    print(f"  {listing.bezeichnung}   [{listing.id}]")
-    print(
+    say("WARUM DIESES AUTO")
+    say(RULE)
+    say(f"  {listing.bezeichnung}   [{listing.id}]")
+    say(
         f"  {listing.category}, EZ {listing.erstzulassung}, "
         f"{euro(listing.kilometerstand)} km, {listing.leistung_kw} kW / "
         f"{listing.leistung_ps} PS, {listing.getriebe}, {listing.kraftstoff}"
     )
-    print(f"  {listing.haendler}, {listing.standort_plz} {listing.standort_ort}\n")
+    say(f"  {listing.haendler}, {listing.standort_plz} {listing.standort_ort}\n")
 
-    print(f"  {'Dimension':<24}{'Gewicht':>8}{'Wert':>7}{'Beitrag':>9}  Begruendung")
+    say(f"  {'Dimension':<24}{'Gewicht':>8}{'Wert':>7}{'Beitrag':>9}  Begründung")
     for dim in top.score.dimensionen:
-        print(
+        say(
             f"  {dim.label:<24}{dim.gewicht:>8.2f}{dim.rohwert:>7.1f}{dim.beitrag:>9.2f}"
             f"  {dim.begruendung[:34]}"
         )
     total = sum(d.beitrag for d in top.score.dimensionen)
-    print(f"  {'GESAMT':<24}{'':>8}{'':>7}{total:>9.2f}")
-    print(f"  Summe der Beitraege {total:.2f} entspricht dem Gesamtwert "
+    say(f"  {'GESAMT':<24}{'':>8}{'':>7}{total:>9.2f}")
+    say(f"  Summe der Beiträge {total:.2f} entspricht dem Gesamtwert "
           f"{top.score.total:.2f}\n")
 
-    print("  Ausschlaggebend:")
+    say("  Ausschlaggebend:")
     for factor in top.score.top_faktoren():
-        print(f"    - {factor}")
-    print()
+        say(f"    - {factor}")
+    say()
 
 
 def print_tco(result, state: InterviewState) -> None:
     top = result.empfehlungen[0]
     km = state.jahresfahrleistung_km.value or 15_000
     tco = cost_of_ownership(top.listing, km)
-    print(f"GESAMTKOSTEN ueber fuenf Jahre bei {euro(km)} km im Jahr")
-    print(RULE)
+    say(f"GESAMTKOSTEN über fünf Jahre bei {euro(km)} km im Jahr")
+    say(RULE)
     for label, value in tco.posten():
-        print(f"  {label:<24}{euro(value):>12} EUR")
-    print(f"  {'-' * 36}")
-    print(f"  {'GESAMT':<24}{euro(tco.gesamt_5j_eur):>12} EUR")
+        say(f"  {label:<24}{euro(value):>12} EUR")
+    say(f"  {'-' * 36}")
+    say(f"  {'GESAMT':<24}{euro(tco.gesamt_5j_eur):>12} EUR")
     if top.listing.preis_eur:
-        print(f"  {'davon Restwert':<24}{euro(tco.restwert_eur):>12} EUR")
-    print(f"\n  Kfz-Steuer: {tco.steuer_hinweis}")
-    print(f"  {tco.schaetzung_hinweis}\n")
+        say(f"  {'davon Restwert':<24}{euro(tco.restwert_eur):>12} EUR")
+    say(f"\n  Kfz-Steuer: {tco.steuer_hinweis}")
+    say(f"  {tco.schaetzung_hinweis}\n")
 
 
 def print_comparison(result) -> None:
@@ -218,16 +238,16 @@ def print_comparison(result) -> None:
     if not top.vergleich:
         return
     v = top.vergleich
-    print("GEGEN DEN ZWEITPLATZIERTEN")
-    print(RULE)
-    print(f"  Platz 2: {v.gegen_bezeichnung} [{v.gegen_id}]")
-    print(f"  Vorsprung        {v.punkte_vorsprung:>10.2f} Punkte")
-    print(f"  Preisdifferenz   {euro(v.preis_differenz_eur):>10} EUR")
-    print(f"  Laufleistung     {euro(v.km_differenz):>10} km")
-    print(f"  Alter            {v.alter_differenz_jahre:>10.1f} Jahre")
+    say("GEGEN DEN ZWEITPLATZIERTEN")
+    say(RULE)
+    say(f"  Platz 2: {v.gegen_bezeichnung} [{v.gegen_id}]")
+    say(f"  Vorsprung        {v.punkte_vorsprung:>10.2f} Punkte")
+    say(f"  Preisdifferenz   {euro(v.preis_differenz_eur):>10} EUR")
+    say(f"  Laufleistung     {euro(v.km_differenz):>10} km")
+    say(f"  Alter            {v.alter_differenz_jahre:>10.1f} Jahre")
     if v.kosten_differenz_eur is not None:
-        print(f"  Gesamtkosten     {euro(v.kosten_differenz_eur):>10} EUR ueber fuenf Jahre")
-    print()
+        say(f"  Gesamtkosten     {euro(v.kosten_differenz_eur):>10} EUR über fünf Jahre")
+    say()
 
 
 def main() -> int:
@@ -249,16 +269,16 @@ def main() -> int:
             key, _, value = pair.partition("=")
             key = key.strip()
             if key not in {d.value for d in Dimension}:
-                print(f"unknown dimension {key!r}. known: {', '.join(d.value for d in Dimension)}")
+                say(f"unknown dimension {key!r}. known: {', '.join(d.value for d in Dimension)}")
                 return 2
             overrides[key] = float(value)
         state.preferences_soft = state.preferences_soft.state(overrides)
 
-    print()
-    print("=" * 78)
-    print(f"  fahrbereit, Rangfolge-Engine   [{title}]")
-    print("=" * 78)
-    print(f'  "{state.use_case_text.value}"\n')
+    say()
+    say("=" * 78)
+    say(f"  fahrbereit, Rangfolge-Engine   [{title}]")
+    say("=" * 78)
+    say(f'  "{state.use_case_text.value}"\n')
 
     print_interview(state)
 
@@ -267,9 +287,9 @@ def main() -> int:
     print_filter(result)
     if not result.empfehlungen:
         worst = result.report.groesster_ausschluss()
-        print("Keine Treffer. Kein Angebot erfuellt alle harten Kriterien.")
+        say("Keine Treffer. Kein Angebot erfuellt alle harten Kriterien.")
         if worst:
-            print(f"Groesster Ausschlussgrund: {CONSTRAINT_LABELS.get(worst, worst)}.")
+            say(f"Größter Ausschlussgrund: {CONSTRAINT_LABELS.get(worst, worst)}.")
         return 1
 
     print_weights(result)
@@ -278,10 +298,10 @@ def main() -> int:
     print_tco(result, state)
     print_comparison(result)
 
-    print(RULE)
-    print("  Alle Zahlen deterministisch berechnet. Kein Modellaufruf, kein Netzwerk.")
-    print(RULE)
-    print()
+    say(RULE)
+    say("  Alle Zahlen deterministisch berechnet. Kein Modellaufruf, kein Netzwerk.")
+    say(RULE)
+    say()
     return 0
 
 

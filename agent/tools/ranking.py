@@ -39,7 +39,7 @@ CONSTRAINT_LABELS: dict[str, str] = {
     "budget": "Budget",
     "getriebe": "Getriebe",
     "kraftstoff": "Kraftstoff",
-    "sitzplaetze": "Sitzplaetze",
+    "sitzplaetze": "Sitzplätze",
     "kofferraum": "Kofferraumvolumen",
     "umweltplakette": "Umweltplakette",
     "kilometerstand": "Kilometerstand",
@@ -70,13 +70,13 @@ class FilterReport(BaseModel):
 
     def erklaerung(self) -> str:
         if not self.ausgeschlossen:
-            return f"{self.gesamt} Angebote geprueft, keines ausgeschlossen."
+            return f"{self.gesamt} Angebote geprüft, keines ausgeschlossen."
         parts = [
             f"{CONSTRAINT_LABELS.get(k, k)} {v}"
             for k, v in sorted(self.ausgeschlossen.items(), key=lambda kv: -kv[1])
         ]
         return (
-            f"{self.gesamt} Angebote geprueft, {self.ausgeschlossen_gesamt} ausgeschlossen "
+            f"{self.gesamt} Angebote geprüft, {self.ausgeschlossen_gesamt} ausgeschlossen "
             f"({', '.join(parts)}), {self.uebrig} verblieben."
         )
 
@@ -285,7 +285,7 @@ def _zustand_score(listing: Listing) -> tuple[float, str]:
 
     hu = listing.hu_monate_verbleibend()
     parts.append(_clamp(hu / 24 * 100))
-    notes.append(f"HU noch {max(hu, 0)} Monate" if hu > 0 else "HU faellig")
+    notes.append(f"HU noch {max(hu, 0)} Monate" if hu > 0 else "HU fällig")
 
     return sum(parts) / len(parts), ", ".join(notes)
 
@@ -352,11 +352,11 @@ def score_listings(
         # Five year running cost.
         raw = _relative(costs[listing.id], min(cost_values), max(cost_values))
         if tco_fn:
-            note = f"{int(costs[listing.id]):,} EUR Gesamtkosten ueber fuenf Jahre".replace(",", ".")
+            note = f"{int(costs[listing.id]):,} EUR Gesamtkosten über fünf Jahre".replace(",", ".")
         else:
             unit = "kWh" if listing.ist_elektro else "l"
             base = listing.verbrauch_kwh_100km or listing.verbrauch_l_100km
-            note = f"Verbrauch {base} {unit}/100 km, Naeherung ohne Gesamtkostenrechnung"
+            note = f"Verbrauch {base} {unit}/100 km, Näherung ohne Gesamtkostenrechnung"
         dims.append(("kosten", raw, note))
 
         # Age and mileage against the candidate set.
@@ -364,7 +364,8 @@ def score_listings(
         km_score = _relative(float(listing.kilometerstand), min(kms), max(kms))
         raw = (age_score + km_score) / 2
         note = (
-            f"EZ {listing.erstzulassung}, {listing.kilometerstand:,} km".replace(",", ".")
+            f"EZ {listing.erstzulassung}, "
+            f"{format(listing.kilometerstand, ',').replace(',', '.')} km"
         )
         dims.append(("alter", raw, note))
 

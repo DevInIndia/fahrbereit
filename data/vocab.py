@@ -34,7 +34,7 @@ SEGMENT: dict[str, dict] = {
         basispreis=88_000, kw=(190, 350), masse=(1_850, 2_300), kofferraum=(500, 620),
         sitze=(5, 5), hubraum=(2_497, 3_996), verbrauch=(6.8, 10.5), kwh=(18.5, 23.0),
     ),
-    "SUV/Gelaendewagen": dict(
+    "SUV/Geländewagen": dict(
         basispreis=38_000, kw=(96, 220), masse=(1_450, 2_100), kofferraum=(430, 640),
         sitze=(5, 7), hubraum=(1_332, 2_498), verbrauch=(5.8, 8.8), kwh=(17.5, 21.5),
     ),
@@ -42,7 +42,7 @@ SEGMENT: dict[str, dict] = {
         basispreis=32_000, kw=(90, 190), masse=(1_320, 1_750), kofferraum=(500, 690),
         sitze=(5, 5), hubraum=(1_197, 2_198), verbrauch=(4.8, 7.4), kwh=(16.0, 19.5),
     ),
-    "Van/Grossraumlimousine": dict(
+    "Van/Großraumlimousine": dict(
         basispreis=34_000, kw=(81, 160), masse=(1_450, 2_250), kofferraum=(600, 1_100),
         sitze=(5, 8), hubraum=(1_332, 2_143), verbrauch=(5.4, 8.2), kwh=(18.0, 22.0),
     ),
@@ -103,7 +103,7 @@ MODELLE: dict[str, list[tuple[str, str]]] = {
         ("Tesla", "Model S"), ("Maserati", "Quattroporte"), ("Genesis", "G90"),
         ("Volvo", "S90 Excellence"),
     ],
-    "SUV/Gelaendewagen": [
+    "SUV/Geländewagen": [
         ("Volkswagen", "Tiguan"), ("Skoda", "Kodiaq"), ("Seat", "Ateca"), ("Ford", "Kuga"),
         ("Opel", "Grandland"), ("Renault", "Kadjar"), ("Peugeot", "3008"),
         ("Toyota", "RAV4"), ("Mazda", "CX-5"), ("Hyundai", "Tucson"), ("Kia", "Sportage"),
@@ -119,7 +119,7 @@ MODELLE: dict[str, list[tuple[str, str]]] = {
         ("Hyundai", "i30 Kombi"), ("Kia", "Ceed SW"), ("BMW", "320d Touring"),
         ("Mercedes-Benz", "C 200 T"), ("Audi", "A4 Avant"), ("Volvo", "V60"),
     ],
-    "Van/Grossraumlimousine": [
+    "Van/Großraumlimousine": [
         ("Volkswagen", "Touran"), ("Ford", "S-Max"), ("Opel", "Zafira"),
         ("Renault", "Espace"), ("Citroen", "Berlingo"), ("Peugeot", "Rifter"),
         ("Seat", "Alhambra"), ("Toyota", "Proace Verso"), ("Mercedes-Benz", "V-Klasse"),
@@ -149,7 +149,7 @@ HAENDLER_PRAEFIX = [
     "Autohaus", "Automobile", "Fahrzeugzentrum", "Motorhaus", "Kraftfahrzeuge",
 ]
 HAENDLER_NAME = [
-    "Lindmann", "Kerscher", "Rheinpark", "Nordstern", "Suedwerk", "Elbtal",
+    "Lindmann", "Kerscher", "Rheinpark", "Nordstern", "Südwerk", "Elbtal",
     "Weserhof", "Falkenberg", "Moorwiese", "Steinbach", "Hohenfeld", "Lichtenau",
     "Birkenhof", "Sandkrug", "Talblick", "Rosental", "Ankerplatz", "Wiesengrund",
 ]
@@ -170,12 +170,12 @@ VERBOTENE_NAMEN = [
 # Postal code, place. Spread across Germany so distance scoring has range.
 ORTE: list[tuple[str, str]] = [
     ("10115", "Berlin"), ("12043", "Berlin"), ("20095", "Hamburg"),
-    ("22767", "Hamburg"), ("80339", "Muenchen"), ("85049", "Ingolstadt"),
-    ("50667", "Koeln"), ("53111", "Bonn"), ("60313", "Frankfurt am Main"),
+    ("22767", "Hamburg"), ("80339", "München"), ("85049", "Ingolstadt"),
+    ("50667", "Köln"), ("53111", "Bonn"), ("60313", "Frankfurt am Main"),
     ("65183", "Wiesbaden"), ("70173", "Stuttgart"), ("76133", "Karlsruhe"),
     ("01067", "Dresden"), ("04109", "Leipzig"), ("28195", "Bremen"),
-    ("30159", "Hannover"), ("40213", "Duesseldorf"), ("44135", "Dortmund"),
-    ("90402", "Nuernberg"), ("99084", "Erfurt"),
+    ("30159", "Hannover"), ("40213", "Düsseldorf"), ("44135", "Dortmund"),
+    ("90402", "Nürnberg"), ("99084", "Erfurt"),
 ]
 
 # ACRISS, the four letter rental classification. Category, type, transmission and
@@ -183,13 +183,13 @@ ORTE: list[tuple[str, str]] = [
 ACRISS_KATEGORIE: dict[str, str] = {
     "Kleinstwagen": "M", "Kleinwagen": "E", "Kompaktklasse": "C",
     "Mittelklasse": "I", "Obere Mittelklasse": "S", "Oberklasse": "L",
-    "SUV/Gelaendewagen": "I", "Kombi": "S", "Van/Grossraumlimousine": "F",
+    "SUV/Geländewagen": "I", "Kombi": "S", "Van/Großraumlimousine": "F",
     "Sportwagen/Cabrio": "S",
 }
 ACRISS_TYP: dict[str, str] = {
     "Kleinstwagen": "B", "Kleinwagen": "D", "Kompaktklasse": "D",
     "Mittelklasse": "D", "Obere Mittelklasse": "D", "Oberklasse": "L",
-    "SUV/Gelaendewagen": "F", "Kombi": "W", "Van/Grossraumlimousine": "V",
+    "SUV/Geländewagen": "F", "Kombi": "W", "Van/Großraumlimousine": "V",
     "Sportwagen/Cabrio": "T",
 }
 ACRISS_ANTRIEB: dict[str, str] = {"Schaltgetriebe": "M", "Automatik": "A"}

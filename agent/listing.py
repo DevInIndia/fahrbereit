@@ -25,9 +25,9 @@ Kategorie = Literal[
     "Mittelklasse",
     "Obere Mittelklasse",
     "Oberklasse",
-    "SUV/Gelaendewagen",
+    "SUV/Geländewagen",
     "Kombi",
-    "Van/Grossraumlimousine",
+    "Van/Großraumlimousine",
     "Sportwagen/Cabrio",
 ]
 
@@ -38,18 +38,18 @@ KATEGORIEN: tuple[str, ...] = (
     "Mittelklasse",
     "Obere Mittelklasse",
     "Oberklasse",
-    "SUV/Gelaendewagen",
+    "SUV/Geländewagen",
     "Kombi",
-    "Van/Grossraumlimousine",
+    "Van/Großraumlimousine",
     "Sportwagen/Cabrio",
 )
 
 Kraftstoff = Literal["Benzin", "Diesel", "Elektro", "Hybrid", "Plug-in-Hybrid"]
 Getriebe = Literal["Schaltgetriebe", "Automatik"]
-Plakette = Literal["gruen", "gelb", "rot"]
+Plakette = Literal["grün", "gelb", "rot"]
 
 # Ordered best to worst. A requirement for green admits only green.
-PLAKETTEN_RANG: dict[str, int] = {"gruen": 3, "gelb": 2, "rot": 1}
+PLAKETTEN_RANG: dict[str, int] = {"grün": 3, "gelb": 2, "rot": 1}
 
 
 class Listing(BaseModel):

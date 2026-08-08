@@ -28,9 +28,9 @@ def family_state() -> InterviewState:
     st.budget = st.budget.state(Budget(max_kaufpreis_eur=25000))
     st.use_case_tags = st.use_case_tags.state([UseCaseTag.FAMILIE, UseCaseTag.PENDELN])
     st.constraints_hard = st.constraints_hard.state(
-        HardConstraints(unfallfrei_erforderlich=True, umweltplakette="gruen")
+        HardConstraints(unfallfrei_erforderlich=True, umweltplakette="grün")
     )
-    st.location = st.location.state(Location(plz="80339", ort="Muenchen"))
+    st.location = st.location.state(Location(plz="80339", ort="München"))
     st.jahresfahrleistung_km = st.jahresfahrleistung_km.state(15000)
     return st
 
@@ -46,7 +46,7 @@ def test_no_recommendation_violates_a_hard_constraint(listings):
         assert rec.listing.listing_type == "kauf"
         assert rec.listing.preis_referenz() <= 25000
         assert rec.listing.unfallfrei
-        assert rec.listing.umweltplakette == "gruen"
+        assert rec.listing.umweltplakette == "grün"
 
 
 def test_drop_counts_sum_to_the_number_excluded(listings):
@@ -92,10 +92,10 @@ def test_seat_constraint_excludes_small_cars(listings):
 def test_green_badge_requirement_excludes_yellow_badges(listings):
     st = InterviewState()
     st.intent = st.intent.state(Intent.KAUF)
-    st.constraints_hard = st.constraints_hard.state(HardConstraints(umweltplakette="gruen"))
+    st.constraints_hard = st.constraints_hard.state(HardConstraints(umweltplakette="grün"))
     survivors, report = hard_filter(st, listings)
-    yellow = sum(1 for l in listings if l.listing_type == "kauf" and l.umweltplakette != "gruen")
-    assert all(l.umweltplakette == "gruen" for l in survivors)
+    yellow = sum(1 for l in listings if l.listing_type == "kauf" and l.umweltplakette != "grün")
+    assert all(l.umweltplakette == "grün" for l in survivors)
     assert report.ausgeschlossen.get("umweltplakette", 0) == yellow
 
 

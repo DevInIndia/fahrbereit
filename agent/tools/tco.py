@@ -54,19 +54,19 @@ PREIS_STROM_EUR_KWH = 0.39
 # Segment averages. Estimates, and presented as estimates.
 VERSICHERUNG_BASIS: dict[str, int] = {
     "Kleinstwagen": 380, "Kleinwagen": 430, "Kompaktklasse": 520, "Mittelklasse": 650,
-    "Obere Mittelklasse": 850, "Oberklasse": 1_250, "SUV/Gelaendewagen": 720,
-    "Kombi": 590, "Van/Grossraumlimousine": 640, "Sportwagen/Cabrio": 980,
+    "Obere Mittelklasse": 850, "Oberklasse": 1_250, "SUV/Geländewagen": 720,
+    "Kombi": 590, "Van/Großraumlimousine": 640, "Sportwagen/Cabrio": 980,
 }
 WARTUNG_BASIS: dict[str, int] = {
     "Kleinstwagen": 320, "Kleinwagen": 380, "Kompaktklasse": 460, "Mittelklasse": 600,
-    "Obere Mittelklasse": 820, "Oberklasse": 1_300, "SUV/Gelaendewagen": 700,
-    "Kombi": 540, "Van/Grossraumlimousine": 640, "Sportwagen/Cabrio": 950,
+    "Obere Mittelklasse": 820, "Oberklasse": 1_300, "SUV/Geländewagen": 700,
+    "Kombi": 540, "Van/Großraumlimousine": 640, "Sportwagen/Cabrio": 950,
 }
 # Annual value retention over the five year horizon, by segment.
 RESTWERT_RATE: dict[str, float] = {
     "Kleinstwagen": 0.87, "Kleinwagen": 0.87, "Kompaktklasse": 0.86,
     "Mittelklasse": 0.84, "Obere Mittelklasse": 0.82, "Oberklasse": 0.79,
-    "SUV/Gelaendewagen": 0.86, "Kombi": 0.86, "Van/Grossraumlimousine": 0.85,
+    "SUV/Geländewagen": 0.86, "Kombi": 0.86, "Van/Großraumlimousine": 0.85,
     "Sportwagen/Cabrio": 0.88,
 }
 
@@ -89,7 +89,7 @@ class CostOfOwnership(BaseModel):
     jahresfahrleistung_km: int
     steuer_hinweis: str
     schaetzung_hinweis: str = (
-        "Versicherung, Wartung und Restwert sind Schaetzungen nach Segmentmittelwerten, "
+        "Versicherung, Wartung und Restwert sind Schätzungen nach Segmentmittelwerten, "
         "keine Angebote. Die Kfz-Steuer ist nach Paragraph 9 KraftStG exakt berechnet."
     )
 
@@ -105,11 +105,11 @@ class CostOfOwnership(BaseModel):
 
 def _co2_anteil(co2: int, freibetrag: int, gestaffelt: bool) -> float:
     """The carbon dioxide term. Banded from 2021, flat before."""
-    ueber = max(0, co2 - freibetrag)
-    if ueber == 0:
+    über = max(0, co2 - freibetrag)
+    if über == 0:
         return 0.0
     if not gestaffelt:
-        return ueber * 2.00
+        return über * 2.00
 
     total = 0.0
     untergrenze = freibetrag
@@ -133,7 +133,7 @@ def _elektro_steuer(listing: Listing, stichtag: date) -> tuple[int, str]:
         if stichtag <= ende:
             return 0, (
                 f"Reines Elektrofahrzeug, steuerbefreit bis {ende.strftime('%m/%Y')} "
-                f"(Achtes Gesetz zur Aenderung des KraftStG)."
+                f"(Achtes Gesetz zur Änderung des KraftStG)."
             )
 
     # Exemption spent: mass based rate, then reduced by half.
@@ -149,7 +149,7 @@ def _elektro_steuer(listing: Listing, stichtag: date) -> tuple[int, str]:
         untergrenze = obergrenze
     return int(round(betrag * 0.5)), (
         "Reines Elektrofahrzeug nach Ablauf der Befreiung, Gewichtsbesteuerung "
-        "mit 50 Prozent Ermaessigung."
+        "mit 50 Prozent Ermäßigung."
     )
 
 
@@ -183,7 +183,7 @@ def kfz_steuer(listing: Listing, stichtag: Optional[date] = None) -> tuple[int, 
     hinweis = (
         f"{einheiten} x {satz:.2f} EUR je angefangene 100 ccm "
         f"({listing.hubraum_ccm} ccm) plus CO2-Anteil auf "
-        f"{max(0, listing.co2_g_km - freibetrag)} g ueber {freibetrag} g/km. {regel}."
+        f"{max(0, listing.co2_g_km - freibetrag)} g über {freibetrag} g/km. {regel}."
     )
     return gesamt, hinweis
 

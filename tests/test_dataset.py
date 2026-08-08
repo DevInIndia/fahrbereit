@@ -101,7 +101,7 @@ def test_price_falls_as_age_and_mileage_rise_within_a_model_line():
 def test_environmental_badge_follows_the_emissions_class(listings):
     for l in listings:
         if l.schadstoffklasse in ("Elektro", "Euro 6", "Euro 6d", "Euro 6d-TEMP", "Euro 6e"):
-            assert l.umweltplakette == "gruen", f"{l.id} {l.schadstoffklasse}"
+            assert l.umweltplakette == "grün", f"{l.id} {l.schadstoffklasse}"
         elif l.schadstoffklasse in ("Euro 4", "Euro 5"):
             assert l.umweltplakette == "gelb", f"{l.id} {l.schadstoffklasse}"
 
