@@ -55,7 +55,7 @@ SEGMENT: dict[str, dict] = {
 # Price positioning by brand. Volume brands near one, premium above.
 MARKE_NIVEAU: dict[str, float] = {
     "Dacia": 0.78, "Fiat": 0.88, "Suzuki": 0.88, "Mitsubishi": 0.88, "Citroen": 0.90,
-    "Renault": 0.92, "Peugeot": 0.94, "Opel": 0.94, "Seat": 0.95, "Skoda": 0.98,
+    "Renault": 0.92, "Peugeot": 0.94, "Opel": 0.94, "Seat": 0.95, "Škoda": 0.98,
     "Ford": 0.96, "Kia": 0.97, "Hyundai": 0.97, "Nissan": 0.96, "Mazda": 1.00,
     "Toyota": 1.02, "Honda": 1.02, "Volkswagen": 1.06, "Smart": 1.02, "Cupra": 1.08,
     "Mini": 1.14, "Alfa Romeo": 1.12, "Jeep": 1.08, "Volvo": 1.20, "Tesla": 1.22,
@@ -68,25 +68,25 @@ MARKE_NIVEAU: dict[str, float] = {
 MODELLE: dict[str, list[tuple[str, str]]] = {
     "Kleinstwagen": [
         ("Fiat", "500"), ("Toyota", "Aygo X"), ("Kia", "Picanto"), ("Hyundai", "i10"),
-        ("Volkswagen", "up!"), ("Skoda", "Citigo"), ("Seat", "Mii"), ("Renault", "Twingo"),
+        ("Volkswagen", "up!"), ("Škoda", "Citigo"), ("Seat", "Mii"), ("Renault", "Twingo"),
         ("Suzuki", "Ignis"), ("Mitsubishi", "Space Star"), ("Smart", "fortwo"),
         ("Citroen", "C1"),
     ],
     "Kleinwagen": [
         ("Volkswagen", "Polo"), ("Opel", "Corsa"), ("Ford", "Fiesta"), ("Renault", "Clio"),
-        ("Peugeot", "208"), ("Citroen", "C3"), ("Skoda", "Fabia"), ("Seat", "Ibiza"),
+        ("Peugeot", "208"), ("Citroen", "C3"), ("Škoda", "Fabia"), ("Seat", "Ibiza"),
         ("Toyota", "Yaris"), ("Mazda", "2"), ("Hyundai", "i20"), ("Kia", "Rio"),
         ("Nissan", "Micra"), ("Dacia", "Sandero"), ("Renault", "Zoe"),
     ],
     "Kompaktklasse": [
-        ("Volkswagen", "Golf"), ("Opel", "Astra"), ("Ford", "Focus"), ("Skoda", "Octavia"),
+        ("Volkswagen", "Golf"), ("Opel", "Astra"), ("Ford", "Focus"), ("Škoda", "Octavia"),
         ("Seat", "Leon"), ("Renault", "Megane"), ("Peugeot", "308"), ("Toyota", "Corolla"),
         ("Mazda", "3"), ("Hyundai", "i30"), ("Kia", "Ceed"), ("Honda", "Civic"),
         ("BMW", "118i"), ("Mercedes-Benz", "A 180"), ("Audi", "A3"), ("Cupra", "Leon"),
         ("Volkswagen", "ID.3"),
     ],
     "Mittelklasse": [
-        ("Volkswagen", "Passat"), ("Skoda", "Superb"), ("Ford", "Mondeo"),
+        ("Volkswagen", "Passat"), ("Škoda", "Superb"), ("Ford", "Mondeo"),
         ("Opel", "Insignia"), ("Mazda", "6"), ("Toyota", "Camry"), ("Hyundai", "Sonata"),
         ("Kia", "Optima"), ("BMW", "320i"), ("Mercedes-Benz", "C 200"), ("Audi", "A4"),
         ("Volvo", "S60"), ("Peugeot", "508"), ("Tesla", "Model 3"),
@@ -94,7 +94,7 @@ MODELLE: dict[str, list[tuple[str, str]]] = {
     "Obere Mittelklasse": [
         ("BMW", "530i"), ("Mercedes-Benz", "E 220 d"), ("Audi", "A6"), ("Volvo", "S90"),
         ("Volkswagen", "Arteon"), ("Jaguar", "XF"), ("Lexus", "ES 300h"),
-        ("Alfa Romeo", "Giulia"), ("Skoda", "Superb L&K"), ("Peugeot", "508 GT"),
+        ("Alfa Romeo", "Giulia"), ("Škoda", "Superb L&K"), ("Peugeot", "508 GT"),
         ("Opel", "Insignia GSi"), ("Genesis", "G70"),
     ],
     "Oberklasse": [
@@ -104,7 +104,7 @@ MODELLE: dict[str, list[tuple[str, str]]] = {
         ("Volvo", "S90 Excellence"),
     ],
     "SUV/Geländewagen": [
-        ("Volkswagen", "Tiguan"), ("Skoda", "Kodiaq"), ("Seat", "Ateca"), ("Ford", "Kuga"),
+        ("Volkswagen", "Tiguan"), ("Škoda", "Kodiaq"), ("Seat", "Ateca"), ("Ford", "Kuga"),
         ("Opel", "Grandland"), ("Renault", "Kadjar"), ("Peugeot", "3008"),
         ("Toyota", "RAV4"), ("Mazda", "CX-5"), ("Hyundai", "Tucson"), ("Kia", "Sportage"),
         ("Nissan", "Qashqai"), ("BMW", "X3"), ("Mercedes-Benz", "GLC"), ("Audi", "Q5"),
@@ -112,7 +112,7 @@ MODELLE: dict[str, list[tuple[str, str]]] = {
         ("Volvo", "XC60"), ("Kia", "EV6"),
     ],
     "Kombi": [
-        ("Volkswagen", "Passat Variant"), ("Skoda", "Octavia Combi"),
+        ("Volkswagen", "Passat Variant"), ("Škoda", "Octavia Combi"),
         ("Ford", "Focus Turnier"), ("Opel", "Astra Sports Tourer"),
         ("Seat", "Leon Sportstourer"), ("Renault", "Megane Grandtour"),
         ("Peugeot", "308 SW"), ("Toyota", "Corolla Touring Sports"), ("Mazda", "6 Kombi"),

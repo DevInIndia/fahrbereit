@@ -6,6 +6,8 @@ and nothing that names a real thing ever is.
 
 from __future__ import annotations
 
+import re
+
 import pytest
 
 from agent import i18n
@@ -231,3 +233,65 @@ def test_the_checkout_button_reads_naturally_in_both_languages():
     en = render_kasse(build_order("FB-1", "X", "kauf", 1, lang="en"), "en")
     assert "Kaufvertrag simulieren" in de
     assert "Simulate purchase contract" in en
+
+
+# ------------------------------------------------------------------ raw identifiers
+
+# Internal names. Every one of these is a valid key somewhere in the system and none
+# of them is a word a user should ever be shown, in either language.
+INTERNE_NAMEN = re.compile(
+    r"\b(kauf|miete|unentschieden|preis_spielraum|gesamtkosten|alter_laufleistung"
+    r"|einsatzzweck|min_sitzplaetze|min_kofferraum_liter|max_kaufpreis_eur"
+    r"|max_tagessatz_eur|jahresfahrleistung_km|mietdauer_tage|unfallfrei_erforderlich"
+    r"|max_kilometerstand|max_entfernung_km|use_case_tags|use_case_text"
+    r"|constraints_hard|preferences_soft|category_preference|listing_type|gruen)\b"
+)
+
+# Keys carrying machine identifiers by design. They address components and are never
+# rendered as text.
+MASCHINENSCHLUESSEL = {
+    "id", "component", "surfaceId", "catalogId", "version", "listingId", "slot",
+    "kinder", "path",
+}
+
+
+def _rendered_strings(node, path=""):
+    """Every string a component actually puts on screen, with where it came from."""
+    if isinstance(node, dict):
+        for key, value in node.items():
+            if key in MASCHINENSCHLUESSEL:
+                continue
+            yield from _rendered_strings(value, f"{path}.{key}")
+    elif isinstance(node, list):
+        for item in node:
+            yield from _rendered_strings(item, path)
+    elif isinstance(node, str):
+        yield path, node
+
+
+def test_every_slot_has_a_label_in_both_languages():
+    """The interface falls back to the raw slot name when a label is missing."""
+    from agent.state import InterviewState
+
+    for name in InterviewState.slot_names():
+        for lang in i18n.LANGS:
+            assert i18n.t(f"slot.{name}", lang) != f"slot.{name}", (
+                f"slot.{name} has no {lang} label, so the interface would show the "
+                f"raw identifier"
+            )
+
+
+@pytest.mark.parametrize("persona", ["familie", "pendler", "umzug"])
+@pytest.mark.parametrize("lang", ["de", "en"])
+def test_no_internal_identifier_reaches_a_rendered_string(persona, lang):
+    """B-3. Walks both surfaces a user actually sees, in both languages."""
+    from agent.server import PERSONAS, _interview_payload
+    from agent.tools.tco import tco_for_state
+
+    state = PERSONAS[persona]()
+    result = rank(state, limit=6, tco_fn=tco_for_state, lang=lang)
+
+    for source in (build_messages(result, lang=lang), _interview_payload(state, lang)):
+        for where, text in _rendered_strings(source):
+            found = INTERNE_NAMEN.findall(text)
+            assert not found, f"{found} reached the user at {where}: {text!r}"
