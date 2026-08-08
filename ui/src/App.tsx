@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { A2UIProvider, A2UIRenderer, useA2UI } from "@copilotkit/a2ui-renderer";
 import { LangContext, fahrbereitCatalog } from "./a2ui/catalog";
 import { AppFrame } from "./AppFrame";
+import { Chat, type ChatTurn } from "./Chat";
 import { LANGS, type Lang, t } from "./i18n";
 
 const DIMENSIONEN = [
@@ -24,42 +25,21 @@ type SlotRow = {
 type Schritt = "katalog" | "formular" | "kasse";
 
 function Katalog({
-  persona,
-  gewichte,
+  messages,
   lang,
-  onInterview,
 }: {
-  persona: string;
-  gewichte: Record<string, number> | null;
+  messages: Record<string, unknown>[] | null;
   lang: Lang;
-  onInterview: (rows: SlotRow[]) => void;
 }) {
   const { processMessages, clearSurfaces } = useA2UI();
-  const [fehler, setFehler] = useState<string | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
-    fetch("/api/surface/katalog", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ persona, gewichte, limit: 6, lang }),
-    })
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
-      .then((data) => {
-        if (cancelled) return;
-        clearSurfaces();
-        // The server side speaks A2UI. This is the whole integration.
-        processMessages(data.messages);
-        onInterview(data.interview);
-        setFehler(null);
-      })
-      .catch((e) => !cancelled && setFehler(String(e)));
-    return () => {
-      cancelled = true;
-    };
-  }, [persona, gewichte, lang, processMessages, clearSurfaces, onInterview]);
+    if (!messages) return;
+    clearSurfaces();
+    // Whoever produced these, the agent or a persona shortcut, speaks A2UI.
+    processMessages(messages);
+  }, [messages, processMessages, clearSurfaces]);
 
-  if (fehler) return <p className="err">{t("backendWeg", lang)}: {fehler}</p>;
   return (
     <A2UIRenderer
       surfaceId="fahrbereit-katalog"
@@ -97,12 +77,24 @@ function Fortschritt({ rows, lang }: { rows: SlotRow[]; lang: Lang }) {
   );
 }
 
+function neueSitzung(): string {
+  const vorhanden = sessionStorage.getItem("fahrbereit.session");
+  if (vorhanden) return vorhanden;
+  const frisch = `s-${Math.random().toString(36).slice(2, 9)}`;
+  sessionStorage.setItem("fahrbereit.session", frisch);
+  return frisch;
+}
+
 export default function App() {
-  const [persona, setPersona] = useState("familie");
   const [schritt, setSchritt] = useState<Schritt>("katalog");
   const [gewichte, setGewichte] = useState<Record<string, number> | null>(null);
   const [interview, setInterview] = useState<SlotRow[]>([]);
   const [protokoll, setProtokoll] = useState<string[]>([]);
+  const [sessionId] = useState(neueSitzung);
+  const [verlauf, setVerlauf] = useState<ChatTurn[]>([]);
+  const [laeuft, setLaeuft] = useState(false);
+  const [messages, setMessages] = useState<Record<string, unknown>[] | null>(null);
+  const [istMiete, setIstMiete] = useState(false);
   const [lang, setLang] = useState<Lang>(() => {
     const stored = localStorage.getItem("fahrbereit.lang");
     return stored === "en" || stored === "de" ? stored : "de";
@@ -115,12 +107,81 @@ export default function App() {
     document.documentElement.lang = lang;
   }, [lang]);
 
-  const onInterview = useCallback((rows: SlotRow[]) => setInterview(rows), []);
   const onToolResult = useCallback((tool: string, result: string) => {
     setProtokoll((p) => [...p, `${tool} -> ${result}`.slice(0, 240)]);
   }, []);
 
-  const istMiete = persona === "umzug";
+  // A conversational turn. The agent decides when to rank; if it did, the A2UI
+  // messages ride back on the same response and the surface updates from them.
+  const senden = useCallback(
+    async (text: string) => {
+      setVerlauf((v) => [...v, { rolle: "user", text }]);
+      setLaeuft(true);
+      try {
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ session_id: sessionId, nachricht: text, lang }),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        setVerlauf((v) => [
+          ...v,
+          {
+            rolle: "agent",
+            text: data.antwort || "...",
+            werkzeuge: data.werkzeuge,
+            modellaufrufe: data.modellaufrufe,
+            gedrosselt: data.gedrosselt,
+          },
+        ]);
+        if (data.interview) setInterview(data.interview);
+        if (data.messages) {
+          setMessages(data.messages);
+          setSchritt("katalog");
+        }
+      } catch (e) {
+        setVerlauf((v) => [
+          ...v,
+          { rolle: "agent", text: `${t("backendWeg", lang)}: ${e}` },
+        ]);
+      } finally {
+        setLaeuft(false);
+      }
+    },
+    [sessionId, lang],
+  );
+
+  const zuruecksetzen = useCallback(async () => {
+    setVerlauf([]);
+    setMessages(null);
+    setInterview([]);
+    await fetch("/api/chat/reset", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ session_id: sessionId, nachricht: "-", lang }),
+    });
+  }, [sessionId, lang]);
+
+  // The persona shortcut. Bypasses the model entirely, so it still works when the
+  // daily quota is gone, which is the point of keeping it.
+  const persona = useCallback(
+    async (name: string, gew: Record<string, number> | null) => {
+      setIstMiete(name === "umzug");
+      const res = await fetch("/api/surface/katalog", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ persona: name, gewichte: gew, limit: 6, lang }),
+      });
+      const data = await res.json();
+      setMessages(data.messages);
+      setInterview(data.interview);
+      setSchritt("katalog");
+    },
+    [lang],
+  );
+
+  const [letztePersona, setLetztePersona] = useState<string | null>(null);
   const intent = istMiete ? "miete" : "kauf";
   const fahrzeug = encodeURIComponent(t("ausgewaehltesFahrzeug", lang));
 
@@ -143,28 +204,44 @@ export default function App() {
             ))}
           </div>
 
-          <div className="eyebrow" style={{ marginTop: 22 }}>{t("persona", lang)}</div>
+          <div className="eyebrow" style={{ marginTop: 22 }}>
+            {t("demoAbkuerzung", lang)}
+          </div>
           <div className="knopfreihe">
             {["familie", "pendler", "umzug"].map((p) => (
               <button
                 key={p}
-                className={p === persona ? "aktiv" : ""}
+                className={p === letztePersona ? "aktiv" : ""}
                 onClick={() => {
-                  setPersona(p);
+                  setLetztePersona(p);
                   setGewichte(null);
-                  setSchritt("katalog");
+                  persona(p, null);
                 }}
               >
                 {p}
               </button>
             ))}
           </div>
+          <p className="footnote">{t("demoHinweis", lang)}</p>
 
           <div className="eyebrow" style={{ marginTop: 22 }}>{t("gewichtung", lang)}</div>
           <div className="knopfreihe spalte">
-            <button onClick={() => setGewichte(null)}>{t("zuruecksetzen", lang)}</button>
+            <button
+              onClick={() => {
+                setGewichte(null);
+                persona(letztePersona ?? "familie", null);
+              }}
+            >
+              {t("zuruecksetzen", lang)}
+            </button>
             {DIMENSIONEN.map((d) => (
-              <button key={d} onClick={() => setGewichte({ [d]: 1 })}>
+              <button
+                key={d}
+                onClick={() => {
+                  setGewichte({ [d]: 1 });
+                  persona(letztePersona ?? "familie", { [d]: 1 });
+                }}
+              >
                 {t("nur", lang)} {t(`dim.${d}`, lang)}
               </button>
             ))}
@@ -197,14 +274,16 @@ export default function App() {
         </aside>
 
         <main className="haupt">
-          {schritt === "katalog" && (
-            <Katalog
-              persona={persona}
-              gewichte={gewichte}
-              lang={lang}
-              onInterview={onInterview}
-            />
-          )}
+          <Chat
+            sessionId={sessionId}
+            lang={lang}
+            verlauf={verlauf}
+            laeuft={laeuft}
+            onSenden={senden}
+            onZuruecksetzen={zuruecksetzen}
+          />
+
+          {schritt === "katalog" && <Katalog messages={messages} lang={lang} />}
           {schritt === "formular" && (
             <AppFrame
               title={t("anfrageformular", lang)}

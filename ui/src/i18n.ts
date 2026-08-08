@@ -90,6 +90,28 @@ const STRINGS: Record<string, Record<Lang, string>> = {
     en: "Total cost over five years",
   },
   gegenPlatz2: { de: "Gegen Platz 2", en: "Against runner-up" },
+
+  // Conversation.
+  gespraech: { de: "Gespräch", en: "Conversation" },
+  neuStarten: { de: "neu starten", en: "restart" },
+  senden: { de: "Senden", en: "Send" },
+  sie: { de: "Sie", en: "You" },
+  denktNach: { de: "denkt nach...", en: "thinking..." },
+  modellaufrufe: { de: "Modellaufrufe", en: "model calls" },
+  gedrosselt: { de: "Kontingent erschöpft", en: "quota exhausted" },
+  chatPlatzhalter: {
+    de: "Beschreiben Sie, wofür Sie ein Auto brauchen. Enter sendet.",
+    en: "Describe what you need a car for. Enter sends.",
+  },
+  chatEinleitung: {
+    de: "Schreiben Sie in eigenen Worten, wofür Sie ein Auto brauchen. Der Agent stellt Rückfragen, leitet ab, was er ableiten kann, und erstellt dann eine Rangfolge. Oder wählen Sie einen Einstieg:",
+    en: "Describe in your own words what you need a car for. The agent asks follow-up questions, infers what it can, and then produces a ranking. Or pick a starting point:",
+  },
+  demoAbkuerzung: { de: "Demo-Abkürzung", en: "Demo shortcut" },
+  demoHinweis: {
+    de: "Die Personen umgehen das Modell. Sie funktionieren auch, wenn das Kontingent erschöpft ist.",
+    en: "The personas bypass the model. They keep working when the quota is exhausted.",
+  },
 };
 
 export function t(key: string, lang: Lang): string {

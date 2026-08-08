@@ -182,3 +182,90 @@ button.aktiv { border-color: var(--accent); color: var(--accent); }
 .tco { font-size: 13px; margin: 12px 0 0; }
 
 .appframe iframe { display: block; background: #131313; }
+
+/* ------------------------------------------------------------------ chat */
+
+.chat {
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 20px;
+}
+
+.chat-kopf {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px 10px;
+  border-bottom: 1px solid var(--rule);
+}
+.chat-kopf .eyebrow { margin: 0; }
+
+button.klein { padding: 4px 9px; font-size: 11px; }
+
+.chat-verlauf {
+  padding: 16px 18px;
+  max-height: 46vh;
+  overflow-y: auto;
+}
+
+.chat-leer { padding: 4px 0 8px; }
+.chat-leer .knopfreihe button {
+  white-space: normal;
+  line-height: 1.4;
+  padding: 9px 12px;
+}
+
+.blase + .blase { margin-top: 16px; }
+
+.blase-rolle {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-bottom: 4px;
+}
+.blase.user .blase-rolle { color: var(--ink-dim); }
+.blase.agent .blase-rolle { color: var(--accent); }
+
+.blase-text { white-space: pre-wrap; font-size: 14px; }
+.blase.user .blase-text {
+  color: var(--ink);
+  border-left: 2px solid var(--rule);
+  padding-left: 12px;
+}
+
+.werkzeuge { margin-top: 7px; display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+.tag.werkzeug { color: var(--ink-faint); font-family: "SF Mono", Consolas, monospace; }
+.tag.gedrosselt { color: var(--warn); border-color: #4a3a1c; }
+
+.chat-eingabe {
+  display: flex;
+  gap: 10px;
+  padding: 12px 18px 16px;
+  border-top: 1px solid var(--rule);
+}
+
+.chat-eingabe textarea {
+  flex: 1;
+  background: var(--ground);
+  border: 1px solid var(--rule);
+  color: var(--ink);
+  font: 400 14px/1.5 inherit;
+  padding: 9px 11px;
+  resize: vertical;
+  min-height: 44px;
+}
+.chat-eingabe textarea:focus { outline: none; border-color: var(--accent); }
+.chat-eingabe textarea:disabled { opacity: 0.55; }
+
+button.senden {
+  align-self: flex-end;
+  background: var(--accent);
+  border: 0;
+  color: #fff;
+  padding: 11px 20px;
+}
+button.senden:disabled { background: var(--rule); color: var(--ink-faint); }

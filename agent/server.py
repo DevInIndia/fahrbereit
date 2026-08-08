@@ -22,6 +22,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from agent import i18n
+from agent.model import install_cache_if_enabled
 from agent.state import (
     Budget,
     Dimension,
@@ -32,6 +33,8 @@ from agent.state import (
     UseCaseTag,
     tags_from_text,
 )
+from agent.session import ranking_for, run_turn, state_for
+from agent.store import STORE
 from agent.surfaces.katalog import build_messages, build_weight_update
 from agent.tools.ranking import rank
 from agent.tools.tco import tco_for_state
@@ -40,6 +43,10 @@ from mcpapps.kasse.server import build_order, kasse_bestaetigen
 from mcpapps.kasse.server import render_for as render_kasse
 
 app = FastAPI(title="fahrbereit")
+
+# Development response cache, keyed on prompt hash. Off unless MODEL_CACHE=1, so a
+# demonstration never shows a cached answer to a question that was not asked.
+CACHE_AKTIV = install_cache_if_enabled()
 
 app.add_middleware(
     CORSMiddleware,
@@ -103,6 +110,12 @@ def _umzug() -> InterviewState:
 
 
 PERSONAS = {"familie": _familie, "pendler": _pendler, "umzug": _umzug}
+
+
+class ChatRequest(BaseModel):
+    session_id: str = "default"
+    nachricht: str
+    lang: str = "de"
 
 
 class WeightRequest(BaseModel):
@@ -211,6 +224,45 @@ def _interview_payload(
             }
         )
     return rows
+
+
+# ------------------------------------------------------------------ agent
+
+
+@app.post("/api/chat")
+def chat(req: ChatRequest) -> dict[str, Any]:
+    """One conversational turn. This is the multistep agent, M-1.
+
+    The agent fills the interview record, decides when it has enough, and calls the
+    ranking engine as a tool. Nothing here ranks, scores or invents; when a ranking
+    exists it is translated into A2UI messages and returned alongside the reply.
+    """
+    if not req.nachricht.strip():
+        raise HTTPException(400, "Leere Nachricht")
+
+    lang = i18n.normalise(req.lang)
+    turn = run_turn(req.session_id, req.nachricht.strip(), lang)
+
+    result = ranking_for(req.session_id)
+    messages = build_messages(result, lang=lang) if result else None
+    state = state_for(req.session_id)
+
+    return {
+        "antwort": turn.antwort,
+        "werkzeuge": turn.werkzeuge,
+        "modellaufrufe": turn.modellaufrufe,
+        "gedrosselt": turn.gedrosselt,
+        "messages": messages,
+        "interview": _interview_payload(state, lang),
+        "lang": lang,
+    }
+
+
+@app.post("/api/chat/reset")
+def chat_reset(req: ChatRequest) -> dict[str, Any]:
+    """Start over. Clears the interview record for this session."""
+    STORE.clear(req.session_id)
+    return {"status": "ok", "session_id": req.session_id}
 
 
 # ------------------------------------------------------------------ MCP Apps
