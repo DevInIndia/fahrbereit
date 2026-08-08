@@ -342,6 +342,81 @@ The numbers must be read from the AI Studio rate limit dashboard for the actual 
 once a key exists, and written into this section with the date they were observed. Until
 then no planning decision may depend on a specific figure.
 
+## Decision 2026-08-08: the Kfz-Steuer formula to be implemented
+
+Written down before any cost of ownership code, and stated on this page rather than
+buried in a function, because a stale figure here is the kind of detail a German
+reviewer catches instantly.
+
+**Source**: paragraph 9 of the Kraftfahrzeugsteuergesetz as published at
+`https://www.gesetze-im-internet.de/kraftstg/__9.html`, read on 2026-08-08. The
+electric vehicle exemption dates come from the Achtes Gesetz zur Aenderung des
+Kraftfahrzeugsteuergesetzes, passed by the Bundestag on 4 December 2025 and reported
+by the Bundestag and the Bundesfinanzministerium.
+
+### Combustion engines, first registration from 1 January 2021
+
+Annual tax is a displacement term plus a carbon dioxide term.
+
+**Displacement**, per angefangene 100 cubic centimetres, meaning every started
+hundred, so 1,498 ccm counts as fifteen units and not fourteen point nine eight:
+
+| Engine | Rate per 100 ccm begun |
+|---|---:|
+| Fremdzuendung, petrol | 2.00 EUR |
+| Selbstzuendung, diesel | 9.50 EUR |
+
+**Carbon dioxide**, with a free allowance of 95 g/km. The rates are banded and each
+band applies only to the portion of the figure inside it, so the charge is
+progressive rather than a single rate applied to the whole excess:
+
+| Band | Rate per gram |
+|---|---:|
+| above 95 up to 115 | 2.00 EUR |
+| above 115 up to 135 | 2.20 EUR |
+| above 135 up to 155 | 2.50 EUR |
+| above 155 up to 175 | 2.90 EUR |
+| above 175 up to 195 | 3.40 EUR |
+| above 195 | 4.00 EUR |
+
+### Combustion engines, first registration before 2021
+
+Registrations from 1 July 2014 to 31 December 2020 use the same displacement rates
+with a flat 2.00 EUR per gram above the same 95 g/km allowance, with no banding.
+Earlier allowances were higher, 110 g/km from 2012 and 120 g/km from mid 2009, and
+the dataset contains vehicles old enough to reach them, so those thresholds are
+implemented too.
+
+### Battery electric vehicles
+
+**The exemption cutoff moved and the widely quoted 2025 date is now stale.** The
+original exemption covered first registrations up to 31 December 2025. The Achtes
+Gesetz extended it: vehicles first registered up to **31 December 2030** qualify, the
+exemption runs for **ten years** from first registration, and it is capped at
+**31 December 2035** regardless.
+
+After the exemption ends, an electric car is taxed on permissible mass rather than
+displacement, and the resulting figure is **reduced by 50 percent**.
+
+**Assumption recorded rather than asserted.** The per 200 kilogramme amounts used for
+the mass based rate are 5.625 EUR up to 2,000 kg, 6.01 EUR from 2,000 to 3,000 kg and
+6.39 EUR above 3,000 kg. These are the commonly cited figures and were not confirmed
+against the statute text in this pass. They affect only electric vehicles whose
+exemption has already expired, which in this dataset means registrations before
+roughly 2016, a small minority. Flagged here rather than presented as certain.
+
+**Assumption recorded rather than asserted.** The top carbon dioxide band is
+implemented at 4.00 EUR per gram on the authority of the statute page cited above.
+Some secondary sources quote 4.20 EUR. The difference applies only above 195 g/km and
+moves the annual figure by a few euro on the small number of listings that reach it.
+
+### Everything else in the cost of ownership is an estimate, and says so
+
+Motor vehicle tax is a published formula and is computed exactly. Insurance,
+maintenance and residual value are segment averages, presented as estimates and
+labelled as such in the interface. They are not quotations and must never be rendered
+as though they were.
+
 ## Open questions carried into the spike
 
 Two integration paths in the chosen stack are unverified. Neither can be settled by
