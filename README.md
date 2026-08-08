@@ -349,6 +349,7 @@ its name. Nothing outside that package would change.
 
 ## Known Limitations
 
+- **Synthetic Marketplace, and Why It Stays That Way**: the 280 listings are generated, and live marketplace data was attempted rather than dismissed. Gemini's built-in Google Search grounding was the one path that needs no second key, breaks no marketplace terms of service and returns real source URLs. It does not work on a free tier key: the models documented at 20 grounded requests per day return `404 NOT_FOUND, no longer available to new users`, and the model we can reach returns `429 RESOURCE_EXHAUSTED` the moment the search tool is attached, while answering an ordinary request from the same key in the same minute. The full test, including that control, is in `docs/spike-notes.md` under Spike C. `agent/listing.py` is the single file a real source would replace.
 - **Invented Residual Values**: `RESTWERT_RATE` in `agent/tools/tco.py` uses simplified annual residual value depreciation rates. Residual value dominates five year total ownership costs and is an invented model constant.
 - **Household Electricity Price**: Electric vehicle home charging uses a flat household rate of 0.39 EUR/kWh, which ignores public fast charging tariffs.
 - **Mixed Pool Unit Comparison**: Under `Intent.UNENTSCHIEDEN`, candidate pools mix purchase listings (5-year total ownership cost) and rental listings (3-day total rental cost). Because figures use different units, rentals sort first on unit count rather than pure financial equivalence.

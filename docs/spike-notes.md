@@ -203,3 +203,63 @@ The relevant capability was confirmed to exist during Phase 0 research:
 `ag_ui_langgraph` 0.0.42 exports `get_a2ui_tools`, `a2ui_tool`, `A2UIGuidelines`,
 `A2UIToolParams`, `BASIC_CATALOG_ID` and `A2UI_OPERATIONS_KEY`. That is a strong signal but
 it is not a run, and it is recorded here as unproven.
+
+---
+
+## Spike C: real marketplace data via Gemini Google Search grounding
+
+**Date**: 2026-08-09
+**Question**: the brief speaks of researching car marketplaces on the user's behalf.
+Search grounding is built into Gemini, needs no second key, breaks no marketplace terms
+of service and returns real source URLs in its grounding metadata. Can it give us a
+live market check against real German listings on the free tier?
+**Verdict**: **no. Grounding quota on a free tier key is zero.** Tested, not assumed.
+
+**Cost**: five calls.
+
+### Results
+
+| Model | Grounded | Result |
+|---|---|---|
+| `gemini-2.5-flash` | yes | `404 NOT_FOUND`, no longer available to new users |
+| `gemini-2.5-flash-lite` | yes | `404 NOT_FOUND`, no longer available to new users |
+| `gemini-3.5-flash-lite` | yes | `429 RESOURCE_EXHAUSTED` |
+| `gemini-3.5-flash-lite` | **no** | **pass** |
+
+The last two rows are the finding. The same model, on the same key, in the same
+minute, answers an ordinary request and refuses a grounded one:
+
+```
+model='gemini-3.5-flash-lite', contents='Say OK.'                      -> "OK."
+
+model='gemini-3.5-flash-lite', tools=[Tool(google_search=GoogleSearch())]
+  -> 429 RESOURCE_EXHAUSTED. You exceeded your current quota, please check
+     your plan and billing details.
+```
+
+That control matters. A 429 on its own would be ambiguous, because 136 model calls had
+already gone through the daily budget that day and exhaustion would look identical. The
+ungrounded call succeeding at the same moment rules that out. The refusal is attached to
+the `google_search` tool, not to the daily request count.
+
+### What this rules out
+
+The plan for this feature was built on a rate limit dashboard reading of 20 requests per
+day for search grounding on Gemini 2.5 Flash. **Those models return 404 for this key**,
+with an explicit message that they are closed to new users. So the 20 per day allowance
+belongs to models we cannot reach, and the model we can reach is at zero. There is no
+combination available on the free tier that produces one grounded search.
+
+### Consequence
+
+An implementation of this shipped at `926f2b3` and was reverted at `2f8096d`. It had
+three defects independent of quota, listed in the revert message, of which the serious
+one was that it regex-harvested figures out of free model prose and presented their
+midpoint as a market price. But the quota result above is the one that closes the
+question: the feature's only reachable state on this key is "unavailable".
+
+**The mock marketplace stays, and this is now a tested reason rather than a preference.**
+`agent/listing.py` remains the single file a real source would replace. Recorded here in
+full because a judge asking why the marketplace is synthetic deserves an answer with an
+error code in it, and because the next person to have this idea should be able to see it
+was tried.
