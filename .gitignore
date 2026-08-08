@@ -1,20 +1,35 @@
 # Python
 __pycache__/
 *.py[cod]
+*$py.class
 *.egg-info/
 .venv/
 venv/
+ENV/
 .pytest_cache/
 .ruff_cache/
+.coverage
+htmlcov/
 
 # Node
 node_modules/
 dist/
 .vite/
 
-# Environment
+# Environment & Secrets
 .env
 .env.local
+.env.*.local
+*.pem
+*.key
+
+# IDEs & Editor configs
+.claude/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
 
 # Runtime state
 state/
@@ -30,6 +45,9 @@ evals/results/*.md
 .DS_Store
 Thumbs.db
 
-# Local run logs
+# Local run logs & temporary files
 backend.log
+backend.err.log
 *.log
+*.tmp
+*.bak

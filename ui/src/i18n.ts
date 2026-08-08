@@ -45,6 +45,10 @@ const STRINGS: Record<string, Record<Lang, string>> = {
       "Stated came from the user, inferred is what the agent concluded from it, " +
       "assumed was chosen by nobody. All three can be corrected.",
   },
+  datenHinweis: {
+    de: "Synthetischer Marktplatz: 280 generierte Angebote.",
+    en: "Synthetic marketplace: 280 generated listings.",
+  },
 
   wirdAufgebaut: { de: "Oberfläche wird aufgebaut...", en: "Building the surface..." },
   wirdGeladen: { de: "Wird geladen...", en: "Loading..." },

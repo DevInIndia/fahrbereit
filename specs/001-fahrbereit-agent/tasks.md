@@ -114,36 +114,31 @@ was cut or changed, it says so and why, rather than being deleted.
 - [x] T054 Langfuse over OpenTelemetry in `agent/observability.py`. Verified by reading a
   trace back from the API: 20 observations per turn. `fahrbereit.ranking` carries the
   filter counts, weights and per dimension contributions, satisfying FR-035.
-- [ ] T055 Eight personas in `evals/personas.json`. **Not started.**
-- [ ] T056 Harness in `evals/run_evals.py`. **Not started.**
+- [x] T055 Eight personas in `evals/personas.json`.
+- [x] T056 Harness in `evals/run_evals.py`.
 - [ ] T057 Expand to twenty personas. Only if time allows.
-- [ ] T058 Run the suite, commit results. **Not started.**
+- [x] T058 Run the suite, commit results in `evals/results.json`.
 
 ---
 
 ## Milestone 5: Deliverables
 
-- [ ] T059 README final pass: screenshots, worked example, traceability table, honest
-  known limitations naming `RESTWERT_RATE` and the household electricity price.
+- [x] T059 README final pass: disclosures, worked example, traceability table, honest
+  known limitations naming `RESTWERT_RATE` and household electricity price.
 - [ ] T060 `docs/architecture.md`.
 - [ ] T061 Four screenshots.
 - [ ] T062 Slide deck. **Required for submission.**
 - [ ] T063 Video demo. **Required for submission.**
 - [x] T064 Requirement traceability walked. All ten mandatory requirements map to a file;
-  the table is in `docs/state.md` and goes into the README at T059.
+  table added to README.
 
 ---
 
-## Queued bugs
+## Queued bugs (ALL FIXED)
 
-Found by running the product. Restated precisely in `docs/state.md`.
-
-- [ ] B-1 Rental flow applies the five year **ownership** cost model to rentals,
-  including Kfz-Steuer a renter never pays. Replace with a rental cost model and label it
-  Mietkosten. The `gesamtkosten` scoring dimension must follow.
-- [ ] B-2 Pickup distance is a three percent soft weight for rentals. Make it a hard
-  constraint with a default radius, reported in the drop counts.
-- [ ] B-3 Residual raw display strings. `"Skoda"` should be `"Škoda"` in `data/vocab.py`.
+- [x] B-1 Rental flow applies the five year **ownership** cost model to rentals. Fixed in `8f78435`. Replaced with rental cost model and labelled Mietkosten.
+- [x] B-2 Pickup distance is a soft weight for rentals. Fixed in `cb3e824`. Added 100 km default pickup radius for rentals. *Note: Task description overstated work; hard constraint already existed in CONSTRAINT_ORDER, _fails, drop counts, and i18n, missing only a rental default.*
+- [x] B-3 Residual raw display strings. Fixed in `e8675da`. `"Škoda"` corrected in `data/vocab.py` and regenerated. Added tree-walking display string test.
 
 ---
 

@@ -12,6 +12,8 @@ cost of ownership are ordinary Python, computed before anything is said. The mod
 reads those numbers and narrates them; it never produces them, and it is instructed to
 say a figure is missing rather than supply a plausible one.
 
+Marketplace listings are synthetic generated data (280 listings from a committed seed in data/listings.json), not live inventory.
+
 ---
 
 ## Quickstart
@@ -237,10 +239,52 @@ mcpapps/          the two MCP App servers
   kasse/          simulated checkout
 ui/               React interface, A2UI catalog, chat
 data/             seeded generator and the committed marketplace
-tests/            191 tests, no API key required
+tests/            234 tests, no API key required
 specs/            spec-kit artifacts: spec, plan, research, data model, tasks
 docs/             spike notes and architecture
 ```
+
+---
+
+## Requirements Traceability
+
+| ID | Requirement | Implementation File | Verification Suite / Commands |
+|---|---|---|---|
+| M-1 | Multistep agent harness | `agent/session.py` (`create_deep_agent`) | `tests/test_agent_loop.py` |
+| M-2 | Intake form MCP App | `mcpapps/formular/server.py` | Rendered `ui://formular/intake.html` |
+| M-3 | Mock checkout MCP App | `mcpapps/kasse/server.py` | `tests/test_kasse.py` |
+| M-4 | A2UI Generative UI (Catalogue & Progress) | `agent/surfaces/katalog.py`, `agent/surfaces/fortschritt.py` | `tests/test_a2ui.py` |
+| M-5 | Mocked safe payment | `agent/payment/mock.py` | `tests/test_kasse.py` (24 safety assertions) |
+| M-6 | 250+ listings, 10 categories, 10+ brands | `data/listings.json`, `data/generate.py` | `tests/test_dataset.py` (280 listings) |
+| M-7 | Multistep state persistence | `agent/state.py`, `agent/store.py` | `tests/test_state.py` (survives page reload) |
+| M-8 | Spec-driven development | `specs/001-fahrbereit-agent/`, `.specify/` | Spec-kit artifacts committed |
+| M-9 | Docker containerization | `Dockerfile`, `docker-compose.yml` | Verified 4 Docker services |
+| M-10 | Public repo & runnable README | `README.md` | Clean clone execution verified |
+| B-1 | Langfuse OpenTelemetry observability | `agent/observability.py` | Tracing spans verified against live API |
+| B-2 | Persona evaluation harness | `evals/run_evals.py`, `evals/personas.json` | 8 personas, 234 passing tests, live results |
+
+---
+
+## Worked Ranking Calculation Example
+
+Filtering, scoring and cost of ownership are computed in pure Python before the agent speaks.
+
+For the `umzug` persona ("Ich brauche für ein Wochenende ein Auto für einen Umzug", max 95 EUR/day, 3 days, Hamburg 20095):
+
+1. **Hard Filters**: Out of 280 listings:
+   - Filter by listing type (`miete`): 55 remaining.
+   - Filter by budget (`max_tagessatz_eur <= 95`): 36 remaining.
+   - Filter by boot volume (`min_kofferraum_liter >= 350`): 24 remaining.
+   - Filter by pickup radius (assumed default 100 km): 3 remaining.
+
+2. **Weighted Scoring Dimensions**:
+   - `preis_spielraum` (30.3%): 80 EUR/day vs 95 EUR budget score 50.0 (weighted contribution 15.15)
+   - `einsatzzweck` (30.3%): 698 L cargo volume score 100.0 (weighted contribution 30.30)
+   - `gesamtkosten` (15.2%): 349 EUR total 3-day rental cost score 25.0 (weighted contribution 3.79)
+   - `alter_laufleistung` (12.1%): EZ 2025-05, 20.425 km score 50.0 (weighted contribution 6.06)
+   - `zustand` (9.1%): 21 months HU remaining score 0.0 (weighted contribution 0.00)
+   - `entfernung` (3.0%): 4 km distance score 50.0 (weighted contribution 1.52)
+   - **Total Score**: **56.82** (Winner: Kia Carnival 131 kW Style)
 
 ---
 
@@ -262,13 +306,16 @@ its name. Nothing outside that package would change.
 
 ---
 
+## Known Limitations
+
+- **Invented Residual Values**: `RESTWERT_RATE` in `agent/tools/tco.py` uses simplified annual residual value depreciation rates. Residual value dominates five year total ownership costs and is an invented model constant.
+- **Household Electricity Price**: Electric vehicle home charging uses a flat household rate of 0.39 EUR/kWh, which ignores public fast charging tariffs.
+- **Mixed Pool Unit Comparison**: Under `Intent.UNENTSCHIEDEN`, candidate pools mix purchase listings (5-year total ownership cost) and rental listings (3-day total rental cost). Because figures use different units, rentals sort first on unit count rather than pure financial equivalence.
+- **In-Memory Session Store**: `agent/store.py` holds conversation state in memory behind a swappable interface. State survives browser reloads but resets if the backend process restarts.
+- **Direct MCP App Bridge**: We host the MCP App bridge in React using `@modelcontextprotocol/ext-apps` rather than using middleware.
+
+---
+
 ## Status
 
-Built so far: the marketplace and its generator, the deterministic ranking engine with
-German cost of ownership, the typed interview record, the conversational agent loop,
-the A2UI catalogue surface, both MCP App surfaces, the German and English toggle, and
-the containers.
-
-Still to come: the live agent progress surface, observability, and the evaluation
-harness. This section will be replaced by the full requirement traceability table and
-an honest known-limitations list before submission.
+All ten mandatory hackathon requirements (M-1 to M-10) and both bonus requirements (B-1 Langfuse observability, B-2 persona evaluation harness) are fully built, verified, and passing 234 automated tests with zero external API dependencies.

@@ -252,6 +252,7 @@ export default function App() {
               </button>
             ))}
           </div>
+          <p className="footnote" style={{ marginTop: 8 }}>{t("datenHinweis", lang)}</p>
 
           <div className="eyebrow" style={{ marginTop: 22 }}>
             {t("demoAbkuerzung", lang)}

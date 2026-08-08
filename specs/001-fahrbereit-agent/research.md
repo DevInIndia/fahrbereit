@@ -27,6 +27,8 @@ badge, next inspection date, that make the ranking model worth building.
 **Consequence**: coherence becomes our responsibility. Price must fall with age and
 mileage, power must track engine and trim, consumption must track power and body. An
 incoherent dataset is visible at a glance and would undermine the ranking work it feeds.
+Everything downstream consumes the typed Listing model, making agent/listing.py the single
+file a production marketplace integration would replace.
 
 ### Ranking: deterministic computation, model narration
 
