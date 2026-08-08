@@ -123,7 +123,7 @@ def persona_umzug() -> tuple[str, InterviewState]:
     st.jahresfahrleistung_km = st.jahresfahrleistung_km.infer(
         5_000, confidence=0.5, source="einmalige Wochenendmiete"
     )
-    st.constraints_hard = st.constraints_hard.state(HardConstraints(min_kofferraum_liter=550))
+    st.constraints_hard = st.constraints_hard.state(HardConstraints(min_kofferraum_liter=350))
     st.location = st.location.state(Location(plz="20095", ort="Hamburg"))
     return "Umzug am Wochenende, Miete, Hamburg", st
 

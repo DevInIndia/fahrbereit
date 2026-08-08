@@ -113,7 +113,7 @@ def _umzug() -> InterviewState:
     st.budget = st.budget.state(Budget(max_tagessatz_eur=95))
     # "für ein Wochenende" is the user's own words, so the duration is stated.
     st.mietdauer_tage = st.mietdauer_tage.state(3, source="für ein Wochenende")
-    st.constraints_hard = st.constraints_hard.state(HardConstraints(min_kofferraum_liter=550))
+    st.constraints_hard = st.constraints_hard.state(HardConstraints(min_kofferraum_liter=350))
     st.location = st.location.state(Location(plz="20095", ort="Hamburg"))
     return st
 
