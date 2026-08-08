@@ -35,8 +35,8 @@ dependencies = [
 
 [project.optional-dependencies]
 observability = [
-    "langfuse==4.14.3",
-    "openinference-instrumentation-langchain==0.1.70",
+    "langfuse>=4.14,<5",
+    "openinference-instrumentation-langchain>=0.1.70,<0.2",
 ]
 dev = [
     "pytest>=8.0",

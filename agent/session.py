@@ -22,6 +22,7 @@ from langgraph.checkpoint.memory import InMemorySaver
 
 from agent import i18n
 from agent.i18n import DEFAULT_LANG, Lang
+from agent import observability
 from agent.model import CallType, RateLimitExceeded, get_model, guard
 from agent.prompts.system import system_prompt
 from agent.store import CURRENT_SESSION, STORE, current_state
@@ -91,7 +92,11 @@ def run_turn(session_id: str, nachricht: str, lang: str = DEFAULT_LANG) -> TurnR
 
         before = LEDGER.billable_total()
         try:
-            with guard(CallType.REASONING):
+            # One root observation per turn, so the model calls, the tool calls and
+            # the ranking attributes all land under a single trace.
+            with observability.turn_span(session_id, nachricht, normalised), guard(
+                CallType.REASONING
+            ):
                 out = agent.invoke(
                     {"messages": [{"role": "user", "content": nachricht}]},
                     config={"configurable": {"thread_id": session_id}},

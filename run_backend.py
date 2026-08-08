@@ -23,6 +23,11 @@ def load_env(path: str = ".env") -> list[str]:
             continue
         key, value = line.split("=", 1)
         key, value = key.strip(), value.strip()
+        # Strip surrounding quotes. Pasting a key from a dashboard often brings them
+        # along, and an unstripped quote is sent as part of the credential, which
+        # fails authentication in a way that looks like a wrong key.
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in ("'", '"'):
+            value = value[1:-1]
         if key and key not in os.environ:
             os.environ[key] = value
             loaded.append(key)

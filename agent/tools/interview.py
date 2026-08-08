@@ -16,7 +16,7 @@ from typing import Optional
 
 from langchain_core.tools import tool
 
-from agent import i18n
+from agent import i18n, observability
 from agent.state import (
     Budget,
     HardConstraints,
@@ -246,6 +246,8 @@ def empfehlungen_erstellen(anzahl: int = 5) -> str:
     result = rank(state, limit=max(1, min(anzahl, 8)), tco_fn=tco_for_state, lang=lang)
 
     STORE.set_artifact(session_id, "ranking", result)
+    # FR-035: a recommendation must be traceable back to the scores that produced it.
+    observability.record_ranking(state, result, lang)
     state.phase = state.phase.__class__.EMPFEHLUNG
     save_state(state)
 

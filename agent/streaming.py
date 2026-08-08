@@ -23,7 +23,7 @@ from typing import Any, Iterator, Optional
 
 from langchain_core.callbacks import BaseCallbackHandler
 
-from agent import i18n
+from agent import i18n, observability
 from agent.i18n import DEFAULT_LANG, Lang
 from agent.model import CallType, RateLimitExceeded, guard
 from agent.session import build_agent
@@ -127,7 +127,9 @@ def stream_turn(session_id: str, nachricht: str, lang: str = DEFAULT_LANG) -> It
             before = LEDGER.billable_total()
             agent = build_agent(normalised)
             try:
-                with guard(CallType.REASONING):
+                with observability.turn_span(
+                    session_id, nachricht, normalised
+                ), guard(CallType.REASONING):
                     out = agent.invoke(
                         {"messages": [{"role": "user", "content": nachricht}]},
                         config={

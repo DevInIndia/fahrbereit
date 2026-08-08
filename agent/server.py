@@ -24,6 +24,7 @@ from pydantic import BaseModel
 
 from agent import i18n
 from agent import mcp_client
+from agent import observability
 from agent.model import install_cache_if_enabled
 from agent.state import (
     Budget,
@@ -50,6 +51,10 @@ app = FastAPI(title="fahrbereit")
 # Development response cache, keyed on prompt hash. Off unless MODEL_CACHE=1, so a
 # demonstration never shows a cached answer to a question that was not asked.
 CACHE_AKTIV = install_cache_if_enabled()
+
+# Tracing first, because Langfuse registers the OpenTelemetry tracer provider that
+# the LangChain instrumentor emits into. Absent keys disable it and change nothing.
+TRACING_AKTIV = observability.configure()
 
 app.add_middleware(
     CORSMiddleware,
@@ -142,6 +147,7 @@ def health() -> dict[str, Any]:
         "langs": list(i18n.LANGS),
         "payment_provider": os.environ.get("PAYMENT_PROVIDER", "mock"),
         "mcp": mcp_client.mode(),
+        "tracing": observability.status(),
         "mcp_fehler": mcp_client.last_error(),
         "simuliert": True,
     }

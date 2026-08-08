@@ -65,6 +65,11 @@ services:
       PAYMENT_PROVIDER: "${PAYMENT_PROVIDER:-mock}"
       MODEL_CACHE: "${MODEL_CACHE:-0}"
       MODEL_CACHE_PATH: "/app/state/model_cache.sqlite"
+      # Optional. Absent keys disable tracing and change nothing else.
+      LANGFUSE_PUBLIC_KEY: "${LANGFUSE_PUBLIC_KEY:-}"
+      LANGFUSE_SECRET_KEY: "${LANGFUSE_SECRET_KEY:-}"
+      LANGFUSE_HOST: "${LANGFUSE_HOST:-}"
+      LANGFUSE_BASE_URL: "${LANGFUSE_BASE_URL:-}"
       # These are what make the MCP servers real rather than decorative.
       MCP_FORMULAR_URL: "http://formular:3001/mcp"
       MCP_KASSE_URL: "http://kasse:3002/mcp"
