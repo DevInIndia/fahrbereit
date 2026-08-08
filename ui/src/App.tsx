@@ -98,11 +98,12 @@ export default function App() {
   const [istMiete, setIstMiete] = useState(false);
   const [lang, setLang] = useState<Lang>(() => {
     const stored = localStorage.getItem("fahrbereit.lang");
-    return stored === "en" || stored === "de" ? stored : "de";
+    return stored === "en" || stored === "de" ? stored : "en";
   });
 
-  // German is the default because the product is German market facing. The choice
-  // persists so a reader who switches once does not have to switch again.
+  // English is the default so a reader who does not speak German can audit the
+  // ranking without switching first. The choice persists, so a stored preference
+  // still wins over this default.
   useEffect(() => {
     localStorage.setItem("fahrbereit.lang", lang);
     document.documentElement.lang = lang;
