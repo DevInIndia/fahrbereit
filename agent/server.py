@@ -140,6 +140,7 @@ def health() -> dict[str, Any]:
         "langs": list(i18n.LANGS),
         "payment_provider": os.environ.get("PAYMENT_PROVIDER", "mock"),
         "mcp": mcp_client.mode(),
+        "mcp_fehler": mcp_client.last_error(),
         "simuliert": True,
     }
 

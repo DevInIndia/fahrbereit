@@ -58,27 +58,24 @@ def remote_enabled() -> bool:
 
 async def _remote_call(server: str, tool: str, args: dict[str, Any]) -> str:
     from mcp import Client
-    from mcp.client.streamable_http import streamablehttp_client
 
-    url = url_for(server)
-    async with streamablehttp_client(url) as (read, write, _):
-        async with Client((read, write), raise_exceptions=True) as client:
-            result = await client.call_tool(tool, args)
-            return _text(result)
+    # mcp 2.0's Client takes the URL directly and builds the streamable HTTP
+    # transport itself. An earlier version of this file imported a helper that does
+    # not exist in 2.0, which made every remote call fall back silently while the
+    # health endpoint still reported "remote". Hence LAST_ERROR below.
+    async with Client(url_for(server), raise_exceptions=True) as client:
+        return _text(await client.call_tool(tool, args))
 
 
 async def _remote_resource(server: str) -> str:
     from mcp import Client
-    from mcp.client.streamable_http import streamablehttp_client
 
-    url = url_for(server)
-    async with streamablehttp_client(url) as (read, write, _):
-        async with Client((read, write), raise_exceptions=True) as client:
-            content = await client.read_resource(RESOURCE_URI[server])
-            for item in getattr(content, "contents", []):
-                text = getattr(item, "text", None)
-                if text:
-                    return text
+    async with Client(url_for(server), raise_exceptions=True) as client:
+        content = await client.read_resource(RESOURCE_URI[server])
+        for item in getattr(content, "contents", []):
+            text = getattr(item, "text", None)
+            if text:
+                return text
     return ""
 
 
@@ -135,8 +132,13 @@ def call_tool(tool: str, args: dict[str, Any]) -> str:
         try:
             return _run(_remote_call(server, tool, args))
         except Exception as exc:  # noqa: BLE001
-            # A dead MCP server must not take the whole interface down mid demo.
-            log.warning("MCP call %s failed against %s: %s", tool, url_for(server), exc)
+            # A dead MCP server must not take the whole interface down mid demo, but
+            # a silent fallback is worse than a loud one: it looks like the protocol
+            # is working when it is not.
+            global LAST_ERROR, FELL_BACK
+            LAST_ERROR = f"{tool} -> {url_for(server)}: {exc}"
+            FELL_BACK = True
+            log.error("MCP call fell back to in-process. %s", LAST_ERROR)
             return _local_call(tool, args)
     return _local_call(tool, args)
 
@@ -157,7 +159,10 @@ def resource_shell(server: str) -> str:
         try:
             return _run(_remote_resource(server))
         except Exception as exc:  # noqa: BLE001
-            log.warning("MCP resource read failed for %s: %s", server, exc)
+            global LAST_ERROR, FELL_BACK
+            LAST_ERROR = f"resource {server}: {exc}"
+            FELL_BACK = True
+            log.error("MCP resource read fell back. %s", LAST_ERROR)
     from mcpapps.formular import server as formular
     from mcpapps.kasse import server as kasse
 
@@ -165,5 +170,18 @@ def resource_shell(server: str) -> str:
     return module.apps  # type: ignore[return-value]
 
 
+# Set whenever a remote call falls back. Reported by /api/health, because a fallback
+# that nothing surfaces is indistinguishable from the protocol working.
+LAST_ERROR: Optional[str] = None
+FELL_BACK = False
+
+
 def mode() -> str:
-    return "remote" if remote_enabled() else "in-process"
+    """What the MCP path is actually doing, not what it was configured to do."""
+    if not remote_enabled():
+        return "in-process"
+    return "remote-degraded" if FELL_BACK else "remote"
+
+
+def last_error() -> Optional[str]:
+    return LAST_ERROR
