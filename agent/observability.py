@@ -167,7 +167,13 @@ def record_ranking(state, result, lang: str = "de") -> None:
                     "fahrzeug": r.listing.bezeichnung,
                     "punkte": round(r.score.total, 2),
                     "preis_eur": r.listing.preis_referenz(),
-                    "tco_5j_eur": r.tco_gesamt_eur,
+                    # Which cost model produced this depends on the listing type, so
+                    # the trace names the model rather than assuming five year
+                    # ownership. A rental figure is the total rental cost.
+                    "kosten_eur": r.tco_gesamt_eur,
+                    "kostenmodell": (
+                        "miete" if r.listing.listing_type == "miete" else "eigentum_5j"
+                    ),
                 }
                 for r in result.empfehlungen
             ],

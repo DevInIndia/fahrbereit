@@ -28,7 +28,7 @@ from agent.state import (
 )
 from agent.store import CURRENT_SESSION, STORE, current_state, save_state
 from agent.tools.ranking import constraint_label, rank
-from agent.tools.tco import tco_for_state
+from agent.tools.tco import STANDARD_MIETDAUER_TAGE, tco_for_state
 
 HERKUNFT = {"gesagt": "stated", "abgeleitet": "inferred"}
 
@@ -74,6 +74,7 @@ def interview_merken(
     max_kaufpreis_eur: Optional[int] = None,
     max_tagessatz_eur: Optional[int] = None,
     jahresfahrleistung_km: Optional[int] = None,
+    mietdauer_tage: Optional[int] = None,
     getriebe: Optional[str] = None,
     kraftstoff: Optional[list[str]] = None,
     min_sitzplaetze: Optional[int] = None,
@@ -92,6 +93,7 @@ def interview_merken(
     fields you actually learned; leave everything else out.
 
     intent is one of: kauf, miete, unentschieden.
+    mietdauer_tage is how many days the car is rented for, and applies to miete only.
     getriebe is one of: Schaltgetriebe, Automatik.
     kraftstoff entries: Benzin, Diesel, Elektro, Hybrid, Plug-in-Hybrid.
     umweltplakette is one of: grün, gelb, rot.
@@ -152,6 +154,10 @@ def interview_merken(
     if jahresfahrleistung_km:
         _apply(state, "jahresfahrleistung_km", jahresfahrleistung_km, herkunft, quelle)
         geaendert.append("jahresfahrleistung_km")
+
+    if mietdauer_tage:
+        _apply(state, "mietdauer_tage", mietdauer_tage, herkunft, quelle)
+        geaendert.append("mietdauer_tage")
 
     constraint_felder = {
         "getriebe": getriebe,
@@ -243,6 +249,19 @@ def empfehlungen_erstellen(anzahl: int = 5) -> str:
         )
 
     lang = i18n.normalise(STORE.artifact(session_id, "lang") or "de")
+
+    # A rental has to be costed over some number of days. If the user has not said,
+    # the assumption is recorded in the slot rather than applied invisibly inside the
+    # cost model, so the interview panel can show it as an assumption and the user can
+    # correct it. DEFAULT provenance never overwrites anything they did say.
+    if state.effective_intent() is Intent.MIETE and not state.mietdauer_tage.is_set:
+        state.mietdauer_tage = state.mietdauer_tage.assume(
+            STANDARD_MIETDAUER_TAGE,
+            source="Standardannahme, keine Mietdauer genannt"
+            if lang == "de"
+            else "standing assumption, no rental duration stated",
+        )
+
     result = rank(state, limit=max(1, min(anzahl, 8)), tco_fn=tco_for_state, lang=lang)
 
     STORE.set_artifact(session_id, "ranking", result)
@@ -273,9 +292,19 @@ def empfehlungen_erstellen(anzahl: int = 5) -> str:
         for faktor in rec.score.top_faktoren(n=2, lang=lang):
             zeilen.append(f"     - {faktor}")
         if rec.tco_gesamt_eur:
-            zeilen.append(
-                f"     - Gesamtkosten 5 Jahre: {i18n.fmt_int(rec.tco_gesamt_eur, lang)} EUR"
-            )
+            betrag = i18n.fmt_int(rec.tco_gesamt_eur, lang)
+            if rec.listing.listing_type == "miete":
+                tage = state.mietdauer_tage.value or STANDARD_MIETDAUER_TAGE
+                label = (
+                    f"{i18n.t('dim.mietkosten', lang)} {tage} "
+                    + ("Tage" if lang == "de" else "days")
+                )
+            else:
+                label = (
+                    f"{i18n.t('dim.gesamtkosten', lang)} "
+                    + ("5 Jahre" if lang == "de" else "5 years")
+                )
+            zeilen.append(f"     - {label}: {betrag} EUR")
 
     top = result.empfehlungen[0]
     if top.vergleich:

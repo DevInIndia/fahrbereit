@@ -15,6 +15,7 @@ from agent.state import (
     UseCaseTag,
 )
 from agent.tools.ranking import CONSTRAINT_ORDER, hard_filter, rank, score_listings
+from agent.tools.tco import STANDARD_MIETDAUER_TAGE, rental_cost, tco_for_state
 
 
 @pytest.fixture
@@ -342,3 +343,72 @@ def test_the_same_car_scores_differently_against_a_different_pool(listings):
     narrow = {r.listing.id: r.score.total for r in rank(st, narrow_pool, limit=5).empfehlungen}
 
     assert wide[target.id] != narrow[target.id]
+
+
+# ------------------------------------------------------------------ rental costing
+
+
+def rental_state(tage: int | None = None) -> InterviewState:
+    st = InterviewState()
+    st.intent = st.intent.state(Intent.MIETE)
+    st.use_case_tags = st.use_case_tags.state([UseCaseTag.UMZUG])
+    st.budget = st.budget.state(Budget(max_tagessatz_eur=95))
+    st.location = st.location.state(Location(plz="20095", ort="Hamburg"))
+    if tage is not None:
+        st.mietdauer_tage = st.mietdauer_tage.state(tage)
+    return st
+
+
+def test_a_rental_is_costed_by_the_rental_model_not_the_ownership_model(listings):
+    """B-1. The renter was being charged five years of tax they never pay."""
+    st = rental_state(3)
+    result = rank(st, listings, limit=5, tco_fn=tco_for_state)
+    assert result.empfehlungen
+
+    for rec in result.empfehlungen:
+        assert rec.listing.listing_type == "miete"
+        expected = rental_cost(rec.listing, 3).gesamt_miete_eur
+        assert rec.tco_gesamt_eur == expected
+        # The five year ownership total for the same car is a different order of
+        # magnitude. If these ever coincide, the routing has regressed.
+        assert rec.tco_gesamt_eur < 5_000
+
+
+def test_the_cost_dimension_is_relabelled_for_a_rental(listings):
+    st = rental_state(3)
+    result = rank(st, listings, limit=3, tco_fn=tco_for_state, lang="de")
+    for rec in result.empfehlungen:
+        kosten = next(
+            d for d in rec.score.dimensionen if d.name is Dimension.GESAMTKOSTEN
+        )
+        assert kosten.label == "Mietkosten"
+        assert "fünf Jahre" not in kosten.begruendung
+        assert "3 Tage" in kosten.begruendung
+
+
+def test_the_cost_dimension_keeps_its_ownership_label_for_a_purchase(listings):
+    result = rank(family_state(), listings, limit=3, tco_fn=tco_for_state, lang="de")
+    for rec in result.empfehlungen:
+        kosten = next(
+            d for d in rec.score.dimensionen if d.name is Dimension.GESAMTKOSTEN
+        )
+        assert kosten.label == "Gesamtkosten"
+        assert "fünf Jahre" in kosten.begruendung
+
+
+def test_a_longer_stated_rental_raises_the_cost_of_every_candidate(listings):
+    short = rank(rental_state(2), listings, limit=5, tco_fn=tco_for_state)
+    long = rank(rental_state(9), listings, limit=5, tco_fn=tco_for_state)
+    by_id = {r.listing.id: r.tco_gesamt_eur for r in short.empfehlungen}
+    for rec in long.empfehlungen:
+        if rec.listing.id in by_id:
+            assert rec.tco_gesamt_eur > by_id[rec.listing.id]
+
+
+def test_an_unstated_rental_duration_falls_back_to_the_standing_assumption(listings):
+    """No duration in state must not mean no cost. It means the documented default."""
+    result = rank(rental_state(), listings, limit=3, tco_fn=tco_for_state)
+    for rec in result.empfehlungen:
+        assert rec.tco_gesamt_eur == (
+            rental_cost(rec.listing, STANDARD_MIETDAUER_TAGE).gesamt_miete_eur
+        )

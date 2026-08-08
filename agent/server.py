@@ -111,7 +111,8 @@ def _umzug() -> InterviewState:
     st.use_case_text = st.use_case_text.state(text)
     st.use_case_tags = st.use_case_tags.infer(tags_from_text(text), confidence=0.9)
     st.budget = st.budget.state(Budget(max_tagessatz_eur=95))
-    st.jahresfahrleistung_km = st.jahresfahrleistung_km.infer(5_000, confidence=0.5)
+    # "für ein Wochenende" is the user's own words, so the duration is stated.
+    st.mietdauer_tage = st.mietdauer_tage.state(3, source="für ein Wochenende")
     st.constraints_hard = st.constraints_hard.state(HardConstraints(min_kofferraum_liter=550))
     st.location = st.location.state(Location(plz="20095", ort="Hamburg"))
     return st
@@ -257,12 +258,26 @@ def _interview_payload(
             return ", ".join(teile)
         if name == "jahresfahrleistung_km":
             return f"{i18n.fmt_int(value, norm)} km"
+        if name == "mietdauer_tage":
+            einheit = "Tage" if norm == "de" else "days"
+            return f"{i18n.fmt_int(value, norm)} {einheit}"
         if isinstance(value, int):
             return i18n.fmt_int(value, norm)
         return str(getattr(value, "value", value))
 
+    # Two slots are specific to one intent and are noise under the other. Showing a
+    # buyer an open "Rental duration" row invites them to answer a question that does
+    # not apply to them.
+    nur_miete = {"mietdauer_tage"}
+    nur_kauf = {"jahresfahrleistung_km"}
+    ist_miete = state.effective_intent() is Intent.MIETE
+
     rows = []
     for name in state.slot_names():
+        if name in nur_miete and not ist_miete:
+            continue
+        if name in nur_kauf and ist_miete:
+            continue
         slot = state.slot(name)
         rows.append(
             {

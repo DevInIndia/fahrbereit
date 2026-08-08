@@ -31,14 +31,19 @@ const STRINGS: Record<string, Record<Lang, string>> = {
   offen: { de: "offen", en: "open" },
   gesagt: { de: "gesagt", en: "stated" },
   abgeleitet: { de: "abgeleitet", en: "inferred" },
+  angenommen: { de: "angenommen", en: "assumed" },
 
   gewichtungHinweis: {
     de: "Die Gewichtung gehört dem Nutzer. Die Voreinstellung ist ein Startpunkt, kein Urteil.",
     en: "The weighting belongs to the user. The default is a starting position, not a verdict.",
   },
   interviewHinweis: {
-    de: "Abgeleitete Werte sind markiert und vom Nutzer korrigierbar.",
-    en: "Inferred values are marked and can be corrected by the user.",
+    de:
+      "Gesagt kommt vom Nutzer, abgeleitet hat der Agent daraus geschlossen, " +
+      "angenommen hat niemand gewählt. Alle drei sind korrigierbar.",
+    en:
+      "Stated came from the user, inferred is what the agent concluded from it, " +
+      "assumed was chosen by nobody. All three can be corrected.",
   },
 
   wirdAufgebaut: { de: "Oberfläche wird aufgebaut...", en: "Building the surface..." },

@@ -20,6 +20,15 @@ T = TypeVar("T")
 
 
 class Provenance(str, Enum):
+    """Three different claims, kept apart because they are not equally strong.
+
+    STATED is a fact about the user. INFERRED is a conclusion the agent drew from
+    something the user did say, and it can be wrong about that user in particular.
+    DEFAULT is neither: nobody chose it, the system needed a number to proceed and
+    used a population assumption. Collapsing DEFAULT into INFERRED would tell the
+    user we worked something out from their words when we did not.
+    """
+
     STATED = "stated"      # the user said it
     INFERRED = "inferred"  # the agent worked it out and must show its working
     DEFAULT = "default"    # nobody chose it, we assumed it
@@ -81,6 +90,11 @@ class Slot(BaseModel, Generic[T]):
         """An inference the user has not yet seen and accepted."""
         return self.is_set and self.provenance is Provenance.INFERRED and not self.confirmed
 
+    @property
+    def is_assumption(self) -> bool:
+        """A value nobody chose. Shown as an assumption, never as a finding."""
+        return self.is_set and self.provenance is Provenance.DEFAULT
+
     def state(self, value: T, source: str | None = None) -> "Slot[T]":
         return Slot[T](
             value=value,
@@ -99,6 +113,25 @@ class Slot(BaseModel, Generic[T]):
             value=value,
             provenance=Provenance.INFERRED,
             confidence=confidence,
+            confirmed=False,
+            source=source,
+            updated_at=datetime.now(timezone.utc),
+        )
+
+    def assume(self, value: T, source: str | None = None) -> "Slot[T]":
+        """Fill a slot with a population assumption, outranking nothing.
+
+        The weakest of the three. It refuses to replace a statement for the same
+        reason `infer` does, and it also refuses to replace an inference: an
+        inference was at least drawn from something this user said, so overwriting
+        it with a population default would lose information.
+        """
+        if self.provenance in (Provenance.STATED, Provenance.INFERRED):
+            return self
+        return Slot[T](
+            value=value,
+            provenance=Provenance.DEFAULT,
+            confidence=0.5,
             confirmed=False,
             source=source,
             updated_at=datetime.now(timezone.utc),
@@ -148,6 +181,7 @@ INVALIDATION_MAP: dict[str, tuple[str, ...]] = {
     "location": ("filter_report", "ranking", "selection"),
     "category_preference": ("filter_report", "ranking", "selection"),
     "jahresfahrleistung_km": ("tco", "ranking"),
+    "mietdauer_tage": ("tco", "ranking"),
     "preferences_soft": ("ranking",),
     "use_case_tags": ("ranking",),
     "target_date": ("availability", "ranking", "order"),
@@ -194,6 +228,10 @@ class InterviewState(BaseModel):
     target_date: Slot[date] = Field(default_factory=lambda: Slot[date]())
     date_flexibility_days: Slot[int] = Field(default_factory=lambda: Slot[int]())
     jahresfahrleistung_km: Slot[int] = Field(default_factory=lambda: Slot[int]())
+    # Rental only. The ownership cost model is driven by annual mileage; a rental is
+    # driven by how many days the car is held, which is a different question and
+    # cannot be derived from the other.
+    mietdauer_tage: Slot[int] = Field(default_factory=lambda: Slot[int]())
     constraints_hard: Slot[HardConstraints] = Field(
         default_factory=lambda: Slot[HardConstraints]()
     )

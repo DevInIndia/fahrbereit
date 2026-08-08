@@ -32,6 +32,7 @@ from agent.i18n import DEFAULT_LANG, Lang
 from agent.listing import PLAKETTEN_RANG, Listing, load_listings
 from agent.state import Dimension, Intent, InterviewState
 from agent.tools.geo import distance_km
+from agent.tools.tco import STANDARD_MIETDAUER_TAGE
 
 # Constraint identities, in the order they are applied. A listing is attributed to
 # the first constraint it fails, so the counts sum to the number excluded and the
@@ -489,9 +490,18 @@ def score_listings(
     Every dimension is percentile normalised against the survivors, so each one uses
     the full range and none can silently flatten into a constant offset.
 
-    `tco_fn` supplies five year cost of ownership. When absent, running cost falls back
-    to consumption, which is a proxy rather than a substitute, and the justification
-    text says so.
+    `tco_fn` supplies the cost figure, and which cost model it uses depends on the
+    listing: five year ownership for a purchase, total rental cost for a rental. When
+    absent, running cost falls back to consumption, which is a proxy rather than a
+    substitute, and the justification text says so.
+
+    KNOWN LIMITATION. Those two figures are not comparable with each other. Under a
+    stated intent the pool is all one type, so the percentile ranking compares like
+    with like. Under Intent.UNENTSCHIEDEN the pool is mixed, and a three day rental
+    total will always undercut a five year ownership total, so rentals sort first for
+    a reason that is an artefact of the units rather than a finding about the cars.
+    Fixing it needs a common horizon for both models, which is a larger change than
+    this project needs; it is recorded rather than hidden.
     """
     if not survivors:
         return []
@@ -557,7 +567,15 @@ def score_listings(
                 else f"{de(prices[i])} EUR, no budget stated"
             )
 
-        if tco_fn:
+        ist_miete = listing.listing_type == "miete"
+        if tco_fn and ist_miete:
+            tage = state.mietdauer_tage.value or STANDARD_MIETDAUER_TAGE
+            note_kosten = (
+                f"{de(costs[i])} EUR Mietkosten für {tage} Tage"
+                if lang == "de"
+                else f"{de(costs[i])} EUR rental cost for {tage} days"
+            )
+        elif tco_fn:
             note_kosten = (
                 f"{de(costs[i])} EUR Gesamtkosten über fünf Jahre"
                 if lang == "de"
@@ -614,7 +632,11 @@ def score_listings(
         scored = [
             DimensionScore(
                 name=key,
-                label=dimension_label(key, lang),
+                label=(
+                    i18n.t("dim.mietkosten", lang)
+                    if key is Dimension.GESAMTKOSTEN and ist_miete
+                    else dimension_label(key, lang)
+                ),
                 gewicht=round(weights[key], 4),
                 rohwert=round(raw_value, 2),
                 beitrag=round(weights[key] * raw_value, 4),

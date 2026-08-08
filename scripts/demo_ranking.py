@@ -28,7 +28,12 @@ from agent.state import (
     tags_from_text,
 )
 from agent.tools.ranking import CONSTRAINT_LABELS, rank
-from agent.tools.tco import cost_of_ownership, tco_for_state
+from agent.tools.tco import (
+    STANDARD_MIETDAUER_TAGE,
+    cost_of_ownership,
+    rental_cost,
+    tco_for_state,
+)
 
 RULE = "-" * 78
 
@@ -241,6 +246,26 @@ def print_winner(result, state: InterviewState) -> None:
 
 def print_tco(result, state: InterviewState) -> None:
     top = result.empfehlungen[0]
+
+    if top.listing.listing_type == "miete":
+        tage = state.mietdauer_tage.value or STANDARD_MIETDAUER_TAGE
+        miete = rental_cost(top.listing, tage)
+        say(f"MIETKOSTEN für {tage} Tage bei {euro(miete.erwartete_km)} km Fahrstrecke")
+        say(RULE)
+        for label, value in miete.posten():
+            say(f"  {label:<24}{euro(value):>12} EUR")
+        say(f"  {'-' * 36}")
+        say(f"  {'GESAMT':<24}{euro(miete.gesamt_miete_eur):>12} EUR")
+        say(f"\n  Grundpreis: {miete.grundpreis_basis}")
+        say(
+            f"  Inklusivkilometer {euro(miete.inklusiv_km)} km, "
+            f"davon überschritten {euro(miete.mehrkilometer_km)} km"
+        )
+        if miete.kaution_hinweis:
+            say(f"  {miete.kaution_hinweis}")
+        say(f"  {miete.miet_hinweis}\n")
+        return
+
     km = state.jahresfahrleistung_km.value or 15_000
     tco = cost_of_ownership(top.listing, km)
     say(f"GESAMTKOSTEN über fünf Jahre bei {euro(km)} km im Jahr")
@@ -268,7 +293,10 @@ def print_comparison(result) -> None:
     say(f"  Laufleistung     {euro(v.km_differenz):>10} km")
     say(f"  Alter            {v.alter_differenz_jahre:>10.1f} Jahre")
     if v.kosten_differenz_eur is not None:
-        say(f"  Gesamtkosten     {euro(v.kosten_differenz_eur):>10} EUR über fünf Jahre")
+        if top.listing.listing_type == "miete":
+            say(f"  Mietkosten       {euro(v.kosten_differenz_eur):>10} EUR über die Mietdauer")
+        else:
+            say(f"  Gesamtkosten     {euro(v.kosten_differenz_eur):>10} EUR über fünf Jahre")
     say()
 
 

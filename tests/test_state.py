@@ -190,3 +190,47 @@ def test_hard_constraints_default_to_permissive():
     c = HardConstraints()
     assert c.getriebe is None
     assert not c.unfallfrei_erforderlich
+
+
+# ------------------------------------------------------------------ assumptions
+
+
+def test_an_assumed_value_is_marked_default_and_is_not_a_finding():
+    """"Nobody said" is a different claim from "we worked it out"."""
+    s = Slot[int]().assume(3, source="no duration stated")
+    assert s.value == 3
+    assert s.provenance is Provenance.DEFAULT
+    assert s.is_assumption
+    assert not s.confirmed
+    # It is not an inference, so it does not enter the confirm-this-inference flow.
+    assert not s.needs_confirmation
+
+
+def test_an_assumption_never_overwrites_what_the_user_said():
+    stated = Slot[int]().state(7)
+    assert stated.assume(3).value == 7
+    assert stated.assume(3).provenance is Provenance.STATED
+
+
+def test_an_assumption_never_overwrites_an_inference():
+    """An inference came from this user's words. A default came from nobody's."""
+    inferred = Slot[int]().infer(5)
+    assert inferred.assume(3).value == 5
+    assert inferred.assume(3).provenance is Provenance.INFERRED
+
+
+def test_the_three_provenances_are_distinct_values():
+    """The interface renders one tag per provenance, so they must not collide."""
+    seen = {
+        Slot[int]().state(1).provenance,
+        Slot[int]().infer(2).provenance,
+        Slot[int]().assume(3).provenance,
+    }
+    assert seen == {Provenance.STATED, Provenance.INFERRED, Provenance.DEFAULT}
+
+
+def test_rental_duration_is_a_slot_that_invalidates_cost_and_ranking():
+    st = InterviewState()
+    assert "mietdauer_tage" in st.slot_names()
+    killed = st.revise("mietdauer_tage", 5)
+    assert set(killed) == {"tco", "ranking"}

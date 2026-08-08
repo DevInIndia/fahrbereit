@@ -123,7 +123,11 @@ button.aktiv { border-color: var(--accent); color: var(--accent); }
   padding: 2px 6px;
   border: 1px solid var(--rule);
 }
+/* Three provenances, three weights of emphasis. Stated is quietest because it
+   needs no scrutiny; inferred is loudest because it is the agent's claim about the
+   user; assumed sits between them, dashed to read as provisional rather than wrong. */
 .tag.inferred { color: var(--warn); border-color: #4a3a1c; }
+.tag.assumed { color: var(--ink-dim); border-style: dashed; }
 .tag.stated { color: var(--ink-faint); }
 
 .limit { color: var(--accent); }

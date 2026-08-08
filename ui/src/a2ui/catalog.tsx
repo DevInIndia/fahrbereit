@@ -261,6 +261,8 @@ export const fahrbereitCatalog = createCatalog(
                   <td style={{ width: 104 }}>
                     {z.herkunft === "inferred" ? (
                       <span className="tag inferred">{t("abgeleitet", lang)}</span>
+                    ) : z.herkunft === "default" ? (
+                      <span className="tag assumed">{t("angenommen", lang)}</span>
                     ) : z.herkunft === "stated" ? (
                       <span className="tag stated">{t("gesagt", lang)}</span>
                     ) : null}

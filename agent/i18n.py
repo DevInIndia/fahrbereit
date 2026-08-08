@@ -162,6 +162,9 @@ STRINGS: dict[str, dict[str, str]] = {
     # dimension labels
     "dim.preis_spielraum": {"de": "Preisspielraum", "en": "Price headroom"},
     "dim.gesamtkosten": {"de": "Gesamtkosten", "en": "Total cost"},
+    # Same scoring dimension, different cost model behind it. A rental is scored on
+    # what the rental costs, not on five years of ownership it never incurs.
+    "dim.mietkosten": {"de": "Mietkosten", "en": "Rental cost"},
     "dim.alter_laufleistung": {"de": "Alter und Laufleistung", "en": "Age and mileage"},
     "dim.einsatzzweck": {"de": "Einsatzzweck", "en": "Fitness for purpose"},
     "dim.zustand": {"de": "Zustand", "en": "Condition"},
@@ -196,6 +199,9 @@ STRINGS: dict[str, dict[str, str]] = {
     "t.wartung": {"de": "Wartung", "en": "Maintenance"},
     "t.wertverlust": {"de": "Wertverlust", "en": "Depreciation"},
     "t.restwert": {"de": "Restwert", "en": "Residual value"},
+    "t.grundpreis": {"de": "Grundpreis", "en": "Base rate"},
+    "t.mehrkilometer": {"de": "Mehrkilometer", "en": "Excess kilometres"},
+    "t.kaution": {"de": "Kaution", "en": "Deposit"},
     # checkout
     "kasse.rechnungsposten": {"de": "Rechnungsposten", "en": "Invoice items"},
     "kasse.position": {"de": "Position", "en": "Item"},
@@ -301,6 +307,7 @@ STRINGS: dict[str, dict[str, str]] = {
     "slot.target_date": {"de": "Wunschtermin", "en": "Target date"},
     "slot.date_flexibility_days": {"de": "Terminspielraum", "en": "Date flexibility"},
     "slot.jahresfahrleistung_km": {"de": "Jahresfahrleistung", "en": "Annual mileage"},
+    "slot.mietdauer_tage": {"de": "Mietdauer", "en": "Rental duration"},
     "slot.constraints_hard": {"de": "Harte Kriterien", "en": "Hard criteria"},
     "slot.preferences_soft": {"de": "Gewichtung", "en": "Weighting"},
     "slot.location": {"de": "Standort", "en": "Location"},

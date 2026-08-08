@@ -72,6 +72,8 @@ function Fortschritt({ rows, lang }: { rows: SlotRow[]; lang: Lang }) {
               <td style={{ width: 104 }}>
                 {r.herkunft === "inferred" ? (
                   <span className="tag inferred">{t("abgeleitet", lang)}</span>
+                ) : r.herkunft === "default" ? (
+                  <span className="tag assumed">{t("angenommen", lang)}</span>
                 ) : r.herkunft === "stated" ? (
                   <span className="tag stated">{t("gesagt", lang)}</span>
                 ) : null}

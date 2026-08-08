@@ -96,6 +96,15 @@ RESTWERT_RATE: dict[str, float] = {
 
 STANDARD_JAHRESFAHRLEISTUNG = 15_000
 
+# INVENTED, both. A renter who has not said how long they need the car is assumed to
+# want a long weekend, and to drive further per day than an owner does, because a
+# rental is usually taken for a specific job rather than for daily life. Both are
+# population assumptions and both are surfaced as such: the duration through a slot
+# carrying DEFAULT provenance, the distance through the label on the excess
+# kilometre line. A stated value replaces either.
+STANDARD_MIETDAUER_TAGE = 3
+STANDARD_KM_PRO_MIETTAG = 200
+
 SCHAETZUNG_HINWEIS_DE = (
     "Versicherung, Wartung und Restwert sind Schätzungen nach Segmentmittelwerten, "
     "keine Angebote. Die Kfz-Steuer ist nach Paragraph 9 KraftStG exakt berechnet."
@@ -103,6 +112,17 @@ SCHAETZUNG_HINWEIS_DE = (
 SCHAETZUNG_HINWEIS_EN = (
     "Insurance, maintenance and residual value are estimates from segment averages, "
     "not quotations. The vehicle tax is computed exactly per section 9 KraftStG."
+)
+
+MIET_HINWEIS_DE = (
+    "Grundpreis und Mehrkilometer stammen aus den Konditionen des Angebots. Der "
+    "Kraftstoff ist eine Schätzung. Kfz-Steuer, Versicherung, Wartung und Wertverlust "
+    "trägt der Vermieter und sie sind nicht enthalten."
+)
+MIET_HINWEIS_EN = (
+    "The base rate and the excess kilometre charge come from the offer's own terms. "
+    "Fuel is an estimate. Vehicle tax, insurance, maintenance and depreciation are "
+    "carried by the operator and are not included."
 )
 
 
@@ -130,6 +150,43 @@ class CostOfOwnership(BaseModel):
             (i18n.t("t.energie", lang), self.energie_5j_eur),
             (i18n.t("t.wartung", lang), self.wartung_5j_eur),
             (i18n.t("t.wertverlust", lang), self.wertverlust_eur),
+        ]
+
+
+class RentalCost(BaseModel):
+    """What a rental actually costs the renter, itemised the same way.
+
+    Deliberately not a CostOfOwnership. A renter pays no vehicle tax, no insurance
+    premium, no maintenance and no depreciation: the operator carries all four and
+    has already priced them into the daily rate. Charging them again to the renter
+    was the defect this model replaces.
+
+    The deposit is carried alongside the total rather than inside it, because it is
+    refundable and adding it would overstate the cost of the rental.
+    """
+
+    tage: int
+    tagessatz_eur: int
+    grundpreis_eur: int
+    grundpreis_basis: str          # which rate structure produced the base price
+    energie_eur: int
+    inklusiv_km: int
+    erwartete_km: int
+    mehrkilometer_km: int
+    mehrkilometer_eur: int
+    kaution_eur: int               # refundable, deliberately outside the total
+    gesamt_miete_eur: int
+    mindestmietdauer_tage: int
+    unter_mindestmietdauer: bool
+    miet_hinweis: str = MIET_HINWEIS_DE
+    kaution_hinweis: str = ""
+
+    def posten(self, lang: Lang = DEFAULT_LANG) -> list[tuple[str, int]]:
+        """The lines that sum to the total. The deposit is not one of them."""
+        return [
+            (i18n.t("t.grundpreis", lang), self.grundpreis_eur),
+            (i18n.t("t.energie", lang), self.energie_eur),
+            (i18n.t("t.mehrkilometer", lang), self.mehrkilometer_eur),
         ]
 
 
@@ -272,17 +329,111 @@ def _wartung_5j(listing: Listing, stichtag: Optional[date] = None) -> int:
     return int(round(basis * alterszuschlag * verschleiss * elektro_rabatt * JAHRE))
 
 
+def rental_cost(
+    listing: Listing,
+    tage: int = STANDARD_MIETDAUER_TAGE,
+    erwartete_km: Optional[int] = None,
+    lang: Lang = DEFAULT_LANG,
+) -> RentalCost:
+    """Total cost of one rental, over the days it is actually held.
+
+    Base price, fuel and excess kilometres. Nothing else, because nothing else is
+    billed to a renter. The weekly rate is applied whenever it beats the daily rate
+    over the same period, which is what a rental desk would do, and the structure
+    that produced the base price is named so the arithmetic can be checked.
+    """
+    if listing.listing_type != "miete":
+        raise ValueError(
+            f"{listing.id} is a purchase listing; use cost_of_ownership for those."
+        )
+
+    tage = max(int(tage), 1)
+    tagessatz = listing.tagessatz_eur or 0
+    wochensatz = listing.wochensatz_eur or 0
+
+    taeglich = tage * tagessatz
+    if wochensatz and tage >= 7:
+        wochen, resttage = divmod(tage, 7)
+        gemischt = wochen * wochensatz + resttage * tagessatz
+    else:
+        gemischt = taeglich
+
+    if gemischt < taeglich:
+        grundpreis = gemischt
+        wochen, resttage = divmod(tage, 7)
+        basis = (
+            f"{wochen} x Wochensatz {wochensatz} EUR"
+            + (f" plus {resttage} x {tagessatz} EUR" if resttage else "")
+            if lang == "de"
+            else f"{wochen} x weekly rate {wochensatz} EUR"
+            + (f" plus {resttage} x {tagessatz} EUR" if resttage else "")
+        )
+    else:
+        grundpreis = taeglich
+        basis = (
+            f"{tage} x Tagessatz {tagessatz} EUR"
+            if lang == "de"
+            else f"{tage} x daily rate {tagessatz} EUR"
+        )
+
+    km = int(erwartete_km) if erwartete_km is not None else tage * STANDARD_KM_PRO_MIETTAG
+    km = max(km, 0)
+
+    # Fuel over the rental distance only. The same consumption figures the ownership
+    # model uses, applied to a distance instead of a year.
+    energie = _energie_jahr(listing, km) if km else 0
+
+    inklusiv = (listing.inklusiv_km_pro_tag or 0) * tage
+    mehr_km = max(0, km - inklusiv)
+    mehr_eur = int(round(mehr_km * (listing.mehrkilometer_eur or 0.0)))
+
+    kaution = listing.kaution_eur or 0
+    mindest = listing.mindestmietdauer_tage or 1
+
+    return RentalCost(
+        tage=tage,
+        tagessatz_eur=tagessatz,
+        grundpreis_eur=grundpreis,
+        grundpreis_basis=basis,
+        energie_eur=energie,
+        inklusiv_km=inklusiv,
+        erwartete_km=km,
+        mehrkilometer_km=mehr_km,
+        mehrkilometer_eur=mehr_eur,
+        kaution_eur=kaution,
+        gesamt_miete_eur=grundpreis + energie + mehr_eur,
+        mindestmietdauer_tage=mindest,
+        unter_mindestmietdauer=tage < mindest,
+        miet_hinweis=MIET_HINWEIS_DE if lang == "de" else MIET_HINWEIS_EN,
+        kaution_hinweis=(
+            f"Kaution {i18n.fmt_int(kaution, lang)} EUR, erstattungsfähig, nicht im "
+            f"Gesamtbetrag enthalten."
+            if lang == "de"
+            else f"Deposit {i18n.fmt_int(kaution, lang)} EUR, refundable, not included "
+                 f"in the total."
+        ) if kaution else "",
+    )
+
+
 def cost_of_ownership(
     listing: Listing,
     jahresfahrleistung_km: int = STANDARD_JAHRESFAHRLEISTUNG,
     stichtag: Optional[date] = None,
     lang: Lang = DEFAULT_LANG,
 ) -> CostOfOwnership:
-    """Five year cost of ownership for one listing.
+    """Five year cost of ownership for one listing offered for purchase.
 
-    Rentals have no purchase price, so depreciation and residual value are zero and
-    the figure is a running cost comparison rather than an ownership one.
+    Rentals are rejected rather than approximated. Running this model over a rental
+    charges the renter five years of vehicle tax, insurance, maintenance and wear
+    that the operator actually carries, which is what `rental_cost` exists to
+    replace. The guard is here so the two can never be confused again by a caller.
     """
+    if listing.listing_type == "miete":
+        raise ValueError(
+            f"{listing.id} is a rental; use rental_cost. A renter pays no vehicle "
+            f"tax, insurance, maintenance or depreciation."
+        )
+
     km = max(jahresfahrleistung_km, 1_000)
 
     steuer_jahr, steuer_hinweis = kfz_steuer(listing, stichtag, lang)
@@ -326,6 +477,14 @@ def cost_of_ownership(
 
 
 def tco_for_state(listing: Listing, state: InterviewState) -> int:
-    """Adapter for the ranking pipeline's injected cost function."""
+    """Adapter for the ranking pipeline's injected cost function.
+
+    Routes each listing to the cost model that fits it. The two numbers are not
+    comparable with each other, which is why the ranking compares them only inside
+    a pool of one listing type. See the note in `agent.tools.ranking.score_listings`.
+    """
+    if listing.listing_type == "miete":
+        tage = state.mietdauer_tage.value or STANDARD_MIETDAUER_TAGE
+        return rental_cost(listing, tage).gesamt_miete_eur
     km = state.jahresfahrleistung_km.value or STANDARD_JAHRESFAHRLEISTUNG
     return cost_of_ownership(listing, km).gesamt_5j_eur
