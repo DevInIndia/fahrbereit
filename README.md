@@ -261,7 +261,48 @@ docs/             spike notes and architecture
 | M-9 | Docker containerization | `Dockerfile`, `docker-compose.yml` | Verified 4 Docker services |
 | M-10 | Public repo & runnable README | `README.md` | Clean clone execution verified |
 | B-1 | Langfuse OpenTelemetry observability | `agent/observability.py` | Tracing spans verified against live API |
-| B-2 | Persona evaluation harness | `evals/run_evals.py`, `evals/personas.json` | 8 personas, 234 passing tests, live results |
+| B-2 | Persona evaluation harness | `evals/run_evals.py`, `evals/personas.json` | 8 personas, live run committed in `evals/results.json` |
+
+---
+
+## Evaluation Results
+
+Eight personas, two of them rentals. Reproduce with `python -m evals.run_evals`, or
+`--offline` to score the deterministic pipeline with no key, no model and no network.
+The run below is live and is the file committed at `evals/results.json`.
+
+| Persona | Slot filling | Violations | Figures traceable | Judged faithfulness |
+|---|---:|---:|---:|---:|
+| `familie_kauf` | 1.00 | 0 | 1.00 | 1.00 |
+| `pendler_elektro` | 0.86 | 0 | 1.00 | 1.00 |
+| `stadt_klein` | 1.00 | 0 | 1.00 | 1.00 |
+| `umzug_miete` (rental) | 1.00 | 0 | 1.00 | 1.00 |
+| `wochenende_miete` (rental) | 0.83 | 0 | 1.00 | 1.00 |
+| `gewerblich_kauf` | 1.00 | 0 | 1.00 | 1.00 |
+| `langstrecke_kauf` | 0.86 | 0 | 1.00 | 0.50 |
+| `budget_unmoeglich` | 0.86 | 0 | 1.00 | 1.00 |
+| **mean** | **0.93** | **0** | **1.00** | **0.94** |
+
+68 model calls for the whole run.
+
+Three of the four measures are deterministic and none of those calls a model. Whether
+a recommendation breaks a hard constraint is a fact about the listing, so asking a
+language model to judge it would turn a checkable fact into an opinion. Faithfulness
+is checked deterministically first too: every figure in the reply is extracted and
+matched against the set the agent was actually handed. The judge runs on Gemma, whose
+14,400 daily requests cost nothing against the reasoning model's 500.
+
+**`budget_unmoeglich`** asks for an electric luxury car under 6,000 EUR with under
+10,000 km. Nothing satisfies it, and the agent returned no recommendation rather than
+inventing one. That is the result the persona exists to produce.
+
+**The one score below 1.00 is a real finding and is left in.** For
+`langstrecke_kauf` the agent wrote that a Mercedes came in "at 13,860 EUR" in a
+sentence about total five-year cost. 13,860 is the car's purchase price, which is why
+the deterministic number check passed it: the figure is genuine and traceable. The
+label attached to it was wrong. This is exactly the failure the judge exists to catch
+and the arithmetic cannot, and it is the clearest evidence that the two layers are
+measuring different things.
 
 ---
 
