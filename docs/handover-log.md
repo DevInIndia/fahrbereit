@@ -8,7 +8,7 @@ This document provides a comprehensive handover record and rollback log for futu
 
 * **Date**: 2026-08-08
 * **Branch**: `main` (working tree clean)
-* **HEAD Commit**: `98c426e1787f1e13c6f5f96f6bc0ae8f471af738`
+* **HEAD Commit**: `0f0b450` (`docs(readme): final pass with requirement traceability, disclosures, and state reconciliation`)
 * **Test Suite**: 234 passing tests (`.venv/Scripts/python.exe -m pytest tests/ -q`), 0 failures, 0 network dependencies.
 * **Python Path**: `.venv/Scripts/python.exe`
 * **Backend Entry Point**: `run_backend.py`
@@ -44,11 +44,14 @@ git checkout HEAD -- path/to/file
 # Revert ALL uncommitted changes in the repository
 git checkout HEAD -- .
 
-# Reset working directory and index cleanly to current HEAD (98c426e)
-git reset --hard 98c426e1787f1e13c6f5f96f6bc0ae8f471af738
+# Reset working directory and index cleanly to current HEAD (0f0b450)
+git reset --hard 0f0b450
 
-# Roll back to the commit before persona evals (commit e8675da)
-git reset --hard e8675da394d9e1eb2bc5bf439de843b22bd89933
+# Roll back to the commit before documentation final pass (commit 396fad5)
+git reset --hard 396fad5
+
+# Roll back to the commit before live evals commit (commit 5deb830)
+git reset --hard 5deb830
 
 # Create a safe revert commit for a specific committed change
 git revert <commit-hash>
@@ -62,52 +65,34 @@ Get-Process python* | Stop-Process -Force
 
 ---
 
-## 3. Recent Commit Audit (Last 4 Commits)
+## 3. Recent Commit Audit (Latest Commits)
 
-### Commit `98c426e` - `feat(evals): persona evaluation harness, eight personas`
-* **Scope**: Implemented Bonus B-2 persona evaluation framework.
-* **Files**: [evals/personas.json](file:///c:/Users/lenovo/Documents/GitHub/fahrbereit/evals/personas.json), [evals/scoring.py](file:///c:/Users/lenovo/Documents/GitHub/fahrbereit/evals/scoring.py), [evals/judge.py](file:///c:/Users/lenovo/Documents/GitHub/fahrbereit/evals/judge.py), [evals/run_evals.py](file:///c:/Users/lenovo/Documents/GitHub/fahrbereit/evals/run_evals.py).
-* **Details**: 8 personas (2 rentals). Deterministic checks for hard constraints and figure traceability; Gemma 4 31B LLM judge for rationale quality. 
-* **Note on Committed `evals/results.json`**: The committed file predates a scoring fix for digits in model names (e.g., Fiat 500, Mercedes C 200) and user boot requirements. The extractor in [evals/scoring.py](file:///c:/Users/lenovo/Documents/GitHub/fahrbereit/evals/scoring.py) now permits these; re-running evals (`MODEL_CACHE=0 .venv/Scripts/python.exe -m evals.run_evals`) updates results cleanly.
+### Commit `0f0b450` - `docs(readme): final pass with requirement traceability, disclosures, and state reconciliation`
+* **Scope**: Documentation, synthetic dataset disclosures, and state reconciliation.
+* **Files**: [README.md](file:///c:/Users/lenovo/Documents/GitHub/fahrbereit/README.md), [docs/state.md](file:///c:/Users/lenovo/Documents/GitHub/fahrbereit/docs/state.md), [specs/001-fahrbereit-agent/tasks.md](file:///c:/Users/lenovo/Documents/GitHub/fahrbereit/specs/001-fahrbereit-agent/tasks.md), [specs/001-fahrbereit-agent/research.md](file:///c:/Users/lenovo/Documents/GitHub/fahrbereit/specs/001-fahrbereit-agent/research.md), [ui/src/App.tsx](file:///c:/Users/lenovo/Documents/GitHub/fahrbereit/ui/src/App.tsx), [ui/src/i18n.ts](file:///c:/Users/lenovo/Documents/GitHub/fahrbereit/ui/src/i18n.ts).
+* **Details**: Added Requirements Traceability Table (M-1 to M-10 + B-1/B-2), worked ranking example from `scripts/demo_ranking.py`, honest known limitations (`RESTWERT_RATE`, electricity price 0.39 EUR/kWh, unit sorting under `UNENTSCHIEDEN`, in-memory store restart behavior, custom MCP bridge), synthetic data disclosures across UI/README/research.md, and reconciled `docs/state.md` and `tasks.md` noting Bug 2 description overstatement.
 
-### Commit `e8675da` - `fix(data): spell Škoda correctly, and pin the no-raw-identifiers rule`
-* **Scope**: Fixed brand spelling in [vocab.py](file:///c:/Users/lenovo/Documents/GitHub/fahrbereit/data/vocab.py) and regenerated [listings.json](file:///c:/Users/lenovo/Documents/GitHub/fahrbereit/data/listings.json) deterministically.
-* **Details**: Verified deterministic generation byte-for-byte. Added raw identifier lint tests and missing slot label tests (Tests 227-234).
+### Commit `396fad5` - `feat(evals): commit live persona evaluation results with 1.00 numerical traceability`
+* **Scope**: Published live 8-persona evaluation results (`MODEL_CACHE=0`).
+* **Files**: [evals/results.json](file:///c:/Users/lenovo/Documents/GitHub/fahrbereit/evals/results.json).
+* **Details**: 64 model calls across 8 personas. Hard constraint violations: 0, slot filling mean: 0.93, numerical traceability: 1.00 (100% of emitted numbers trace back to Python data, confirming false positives like Fiat 500/Mercedes C 200/550 L boot capacity are gone), judged faithfulness: 1.00.
 
-### Commit `cb3e824` - `fix(ranking): give rentals a default pickup radius`
-* **Scope**: Default 100 km pickup radius constraint for rental paths.
-* **Details**: Added default rental pickup radius in [ranking.py](file:///c:/Users/lenovo/Documents/GitHub/fahrbereit/agent/tools/ranking.py) and reported in `FilterReport`. Prevents Hamburg renters from receiving 400 km distant van recommendations.
-
-### Commit `8f78435` - `fix(tco): cost rentals as rentals, not as five years of ownership`
-* **Scope**: Dedicated rental cost model `rental_cost()`.
-* **Details**: Base price over days + fuel + excess km; deposit reported separately. `cost_of_ownership()` raises `ValueError` on rentals. Added `mietdauer_tage` state slot.
+### Commit `5deb830` - `fix(ranking): loosen umzug persona hard boot constraint to eliminate double-counting`
+* **Scope**: Persona constraint modeling fix.
+* **Files**: [agent/server.py](file:///c:/Users/lenovo/Documents/GitHub/fahrbereit/agent/server.py), [scripts/demo_ranking.py](file:///c:/Users/lenovo/Documents/GitHub/fahrbereit/scripts/demo_ranking.py).
+* **Details**: Changed `min_kofferraum_liter` from 550 to 350 liters in the `umzug` demo persona definitions to eliminate double-counting between the hard cutoff and soft `Ladevolumen` weighting. `demo_ranking.py --persona umzug` now returns 3 candidates with Kia Carnival (698 L boot) winning on cargo merit.
 
 ---
 
-## 4. Current Work Status & Queued Tasks
+## 4. Current Work Status & Deliverables
 
-The implementation plan is currently **ON HOLD** per user request. When resumed, the prioritized tasks are:
-
-1. **Task 1: Live Evals Re-run**
-   * Run `MODEL_CACHE=0 .venv/Scripts/python.exe -m evals.run_evals` to publish updated, false-positive-free evaluation metrics in [evals/results.json](file:///c:/Users/lenovo/Documents/GitHub/fahrbereit/evals/results.json).
-
-2. **Task 2: Seeded Data Disclosures**
-   * UI header in [App.tsx](file:///c:/Users/lenovo/Documents/GitHub/fahrbereit/ui/src/App.tsx).
-   * Notice line in [README.md](file:///c:/Users/lenovo/Documents/GitHub/fahrbereit/README.md).
-   * Listing loader swap note in [specs/001-fahrbereit-agent/research.md](file:///c:/Users/lenovo/Documents/GitHub/fahrbereit/specs/001-fahrbereit-agent/research.md).
-
-3. **Task 3: README Final Pass**
-   * Insert Requirements Traceability Table (M-1 to M-10 + B-1, B-2).
-   * Insert worked ranking calculation example from [demo_ranking.py](file:///c:/Users/lenovo/Documents/GitHub/fahrbereit/scripts/demo_ranking.py).
-   * Document honest known limitations (`RESTWERT_RATE`, electricity price 0.39 EUR/kWh, rental/purchase mix in `UNENTSCHIEDEN`, in-memory store restart behavior, custom MCP bridge).
-   * Update status section.
-
-4. **Task 4: Document Reconciliation**
-   * Reconcile [docs/state.md](file:///c:/Users/lenovo/Documents/GitHub/fahrbereit/docs/state.md) and [specs/001-fahrbereit-agent/tasks.md](file:///c:/Users/lenovo/Documents/GitHub/fahrbereit/specs/001-fahrbereit-agent/tasks.md) to mark fixed bugs and completed B-2 evals.
-
-5. **Task 5: Deliverables & Architecture**
-   * Author [docs/architecture.md](file:///c:/Users/lenovo/Documents/GitHub/fahrbereit/docs/architecture.md).
-   * Create slide deck outline and video demo script.
+All building tasks are **COMPLETE** and verified:
+1. **Mandatory Requirements (M-1 to M-10)**: All 10 built and verified.
+2. **Bonus Requirements**: B-1 (Langfuse observability) and B-2 (Persona evals) completed.
+3. **Documentation Assets Created**:
+   * [docs/architecture.md](file:///c:/Users/lenovo/Documents/GitHub/fahrbereit/docs/architecture.md): Container topology, DeepAgents orchestrator, A2UI v0.9 streaming, MCP App bridge, ranking/TCO formulas, and Langfuse tracing.
+   * [docs/slide_deck_outline.md](file:///c:/Users/lenovo/Documents/GitHub/fahrbereit/docs/slide_deck_outline.md): Presentation deck structure for submission.
+   * [docs/video_demo_script.md](file:///c:/Users/lenovo/Documents/GitHub/fahrbereit/docs/video_demo_script.md): Scripted 3-minute video walkthrough.
 
 ---
 
