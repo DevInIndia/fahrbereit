@@ -14,7 +14,14 @@ from agent.state import (
     Location,
     UseCaseTag,
 )
-from agent.tools.ranking import CONSTRAINT_ORDER, hard_filter, rank, score_listings
+from agent.tools.geo import distance_km
+from agent.tools.ranking import (
+    CONSTRAINT_ORDER,
+    STANDARD_MIET_RADIUS_KM,
+    hard_filter,
+    rank,
+    score_listings,
+)
 from agent.tools.tco import STANDARD_MIETDAUER_TAGE, rental_cost, tco_for_state
 
 
@@ -403,6 +410,42 @@ def test_a_longer_stated_rental_raises_the_cost_of_every_candidate(listings):
     for rec in long.empfehlungen:
         if rec.listing.id in by_id:
             assert rec.tco_gesamt_eur > by_id[rec.listing.id]
+
+
+def test_a_rental_gets_a_default_pickup_radius_the_user_never_asked_for(listings):
+    """B-2. Distance was a three percent soft weight and a 404 km van won."""
+    st = rental_state(3)
+    survivors, report = hard_filter(st, listings)
+    assert report.angenommener_radius_km == STANDARD_MIET_RADIUS_KM
+    for listing in survivors:
+        d = distance_km("20095", listing.standort_plz)
+        assert d is None or d <= STANDARD_MIET_RADIUS_KM
+
+
+def test_the_assumed_radius_is_stated_rather_than_applied_silently(listings):
+    st = rental_state(3)
+    _, report = hard_filter(st, listings)
+    assert "entfernung" in report.ausgeschlossen
+    assert "100 km angenommen" in report.erklaerung("de")
+    assert "assumed, not stated" in report.erklaerung("en")
+
+
+def test_a_stated_radius_beats_the_default(listings):
+    st = rental_state(3)
+    st.location = st.location.state(
+        Location(plz="20095", ort="Hamburg", max_entfernung_km=400)
+    )
+    survivors, report = hard_filter(st, listings)
+    assert report.angenommener_radius_km is None
+    assert "angenommen" not in report.erklaerung("de")
+    assert len(survivors) > len(hard_filter(rental_state(3), listings)[0])
+
+
+def test_a_purchase_keeps_distance_as_a_soft_weight(listings):
+    """The default is a rental rule. Buyers do travel for the right car."""
+    _, report = hard_filter(family_state(), listings)
+    assert report.angenommener_radius_km is None
+    assert "entfernung" not in report.ausgeschlossen
 
 
 def test_an_unstated_rental_duration_falls_back_to_the_standing_assumption(listings):

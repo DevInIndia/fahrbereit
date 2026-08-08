@@ -51,6 +51,19 @@ CONSTRAINT_ORDER: tuple[str, ...] = (
     "entfernung",
 )
 
+# INVENTED. Default pickup radius applied to rentals when the user has not named one.
+# Distance is a three percent soft weight, which was enough to let a moving van 404 km
+# from the renter win: nobody collects a van from Wiesbaden for a weekend in Hamburg.
+# For a rental the radius is a hard constraint, because collection is a trip the renter
+# has to make twice on the day.
+#
+# 100 rather than a tighter 50 because `agent.tools.geo` places postal codes at the
+# centroid of their two digit region, so its error is tens of kilometres. A threshold
+# of 50 would be within the noise of the measurement it is applied to. Purchases keep
+# the soft weight: a car is collected once, and people do travel for the right one.
+STANDARD_MIET_RADIUS_KM = 100
+
+
 def constraint_label(key: str, lang: Lang = DEFAULT_LANG) -> str:
     """Human readable constraint name. The user sees these, not the keys."""
     return i18n.t(f"c.{key}", lang)
@@ -80,6 +93,10 @@ class FilterReport(BaseModel):
     gesamt: int
     uebrig: int
     ausgeschlossen: dict[str, int] = Field(default_factory=dict)
+    # Set only when a radius the user never asked for did the excluding. A constraint
+    # applied on the user's behalf has to say so, or the drop count reads as their
+    # own criterion rejecting listings.
+    angenommener_radius_km: Optional[int] = None
 
     @property
     def ausgeschlossen_gesamt(self) -> int:
@@ -100,14 +117,23 @@ class FilterReport(BaseModel):
         ]
         dropped = i18n.fmt_int(self.ausgeschlossen_gesamt, lang)
         if lang == "de":
-            return (
+            satz = (
                 f"{total} Angebote geprüft, {dropped} ausgeschlossen "
                 f"({', '.join(parts)}), {left} verblieben."
             )
-        return (
-            f"{total} listings checked, {dropped} excluded "
-            f"({', '.join(parts)}), {left} remaining."
-        )
+        else:
+            satz = (
+                f"{total} listings checked, {dropped} excluded "
+                f"({', '.join(parts)}), {left} remaining."
+            )
+        if self.angenommener_radius_km and "entfernung" in self.ausgeschlossen:
+            radius = i18n.fmt_int(self.angenommener_radius_km, lang)
+            satz += (
+                f" Abholradius {radius} km angenommen, nicht genannt."
+                if lang == "de"
+                else f" A pickup radius of {radius} km was assumed, not stated."
+            )
+        return satz
 
     def groesster_ausschluss(self) -> Optional[str]:
         """The constraint to suggest relaxing when nothing survives."""
@@ -277,6 +303,10 @@ def _fails(listing: Listing, state: InterviewState) -> Optional[str]:
     max_km = (constraints.max_entfernung_km if constraints else None) or (
         location.max_entfernung_km if location else None
     )
+    # A rental with no stated radius gets the default one. A purchase does not: the
+    # existing soft weight is the right treatment there.
+    if max_km is None and intent is Intent.MIETE:
+        max_km = STANDARD_MIET_RADIUS_KM
     if max_km and location and location.plz:
         d = distance_km(location.plz, listing.standort_plz)
         if d is not None and d > max_km:
@@ -301,7 +331,27 @@ def hard_filter(
             dropped[reason] = dropped.get(reason, 0) + 1
 
     ordered = {k: dropped[k] for k in CONSTRAINT_ORDER if k in dropped}
-    return survivors, FilterReport(gesamt=len(pool), uebrig=len(survivors), ausgeschlossen=ordered)
+
+    constraints = state.constraints_hard.value
+    location = state.location.value
+    genannt = (constraints.max_entfernung_km if constraints else None) or (
+        location.max_entfernung_km if location else None
+    )
+    angenommen = (
+        STANDARD_MIET_RADIUS_KM
+        if genannt is None
+        and state.effective_intent() is Intent.MIETE
+        and location
+        and location.plz
+        else None
+    )
+
+    return survivors, FilterReport(
+        gesamt=len(pool),
+        uebrig=len(survivors),
+        ausgeschlossen=ordered,
+        angenommener_radius_km=angenommen,
+    )
 
 
 # ---------------------------------------------------------------- stage 2
