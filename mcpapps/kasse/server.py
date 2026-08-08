@@ -274,12 +274,51 @@ def kasse_bestaetigen(listing_id: str, intent: str = "kauf") -> str:
     )
 
 
+@mcp.tool(
+    description=(
+        "Liefert die gerenderte Kasse für einen konkreten Fall. Der ui://-Eintrag "
+        "bleibt die Kennung der App; dieser Aufruf liefert die Variante für Betrag, "
+        "Flow und Sprache. Alles daran ist simuliert."
+    )
+)
+def kasse_render(
+    listing_id: str,
+    fahrzeug: str = "",
+    intent: str = "kauf",
+    betrag_eur: int = 0,
+    kaution_eur: int = 0,
+    abholort: str = "",
+    zeitraum: str = "",
+    lang: str = "de",
+) -> str:
+    norm = i18n.normalise(lang)
+    order = build_order(
+        listing_id,
+        fahrzeug or listing_id,
+        intent,
+        betrag_eur * 100,
+        kaution_cent=kaution_eur * 100,
+        abholort=abholort,
+        zeitraum=zeitraum,
+        lang=norm,
+    )
+    OFFENE_BESTELLUNGEN[listing_id] = order
+    return _render(order, norm)
+
+
 def render_for(order: dict[str, Any], lang: str = DEFAULT_LANG) -> str:
     """Exposed for tests and for the React host."""
     return _render(order, i18n.normalise(lang))
 
 
 if __name__ == "__main__":
+    import os
+
     import uvicorn
 
-    uvicorn.run(mcp.streamable_http_app(), host="0.0.0.0", port=3002, log_level="warning")
+    uvicorn.run(
+        mcp.streamable_http_app(),
+        host=os.environ.get("HOST", "0.0.0.0"),
+        port=int(os.environ.get("PORT", "3002")),
+        log_level="warning",
+    )

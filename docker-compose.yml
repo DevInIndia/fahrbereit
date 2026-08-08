@@ -1,0 +1,96 @@
+# Four services: the agent backend, the two MCP App servers, and the frontend.
+#
+# Open http://localhost:8080 after `docker compose up`. That is the only URL you need;
+# nginx serves the interface and proxies /api to the backend, so everything is one
+# origin.
+#
+# The backend talks to the two MCP servers over the Model Context Protocol, at the
+# URLs below. They are real services, not libraries imported in-process.
+
+services:
+  formular:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: python -m mcpapps.formular.server
+    environment:
+      PORT: "3001"
+    expose:
+      - "3001"
+    # Published so the MCP server can be inspected directly with an MCP client.
+    ports:
+      - "3001:3001"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket,sys; s=socket.create_connection(('127.0.0.1',3001),3); s.close()"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+
+  kasse:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: python -m mcpapps.kasse.server
+    environment:
+      PORT: "3002"
+      # The only payment implementation in this repository. There is no real gateway.
+      PAYMENT_PROVIDER: "${PAYMENT_PROVIDER:-mock}"
+    expose:
+      - "3002"
+    ports:
+      - "3002:3002"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket,sys; s=socket.create_connection(('127.0.0.1',3002),3); s.close()"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      # Supplied from .env. Without a key the chat cannot run, but the persona
+      # shortcuts still work, because they call no model.
+      GOOGLE_API_KEY: "${GOOGLE_API_KEY:-}"
+      MODEL_PROVIDER: "${MODEL_PROVIDER:-gemini}"
+      MODEL_REASONING: "${MODEL_REASONING:-gemini-3.5-flash-lite}"
+      MODEL_CHEAP: "${MODEL_CHEAP:-gemma-4-31b-it}"
+      PAYMENT_PROVIDER: "${PAYMENT_PROVIDER:-mock}"
+      MODEL_CACHE: "${MODEL_CACHE:-0}"
+      MODEL_CACHE_PATH: "/app/state/model_cache.sqlite"
+      # These are what make the MCP servers real rather than decorative.
+      MCP_FORMULAR_URL: "http://formular:3001/mcp"
+      MCP_KASSE_URL: "http://kasse:3002/mcp"
+    expose:
+      - "8000"
+    ports:
+      - "8000:8000"
+    volumes:
+      - fahrbereit-state:/app/state
+    depends_on:
+      formular:
+        condition: service_healthy
+      kasse:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=3)"]
+      interval: 5s
+      timeout: 4s
+      retries: 12
+      start_period: 15s
+
+  ui:
+    build:
+      context: ./ui
+      dockerfile: Dockerfile
+    ports:
+      - "8080:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  fahrbereit-state:

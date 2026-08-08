@@ -22,6 +22,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from agent import i18n
+from agent import mcp_client
 from agent.model import install_cache_if_enabled
 from agent.state import (
     Budget,
@@ -138,6 +139,7 @@ def health() -> dict[str, Any]:
         "personas": sorted(PERSONAS),
         "langs": list(i18n.LANGS),
         "payment_provider": os.environ.get("PAYMENT_PROVIDER", "mock"),
+        "mcp": mcp_client.mode(),
         "simuliert": True,
     }
 
@@ -315,11 +317,21 @@ def app_formular(
     fahrzeug: str = "",
     lang: str = "de",
 ) -> dict:
-    """The formular MCP App surface, for the client to render in a sandboxed iframe."""
+    """The formular MCP App surface, fetched from its MCP server."""
+    uri, html = mcp_client.surface_html(
+        "formular",
+        {
+            "listing_id": listing_id,
+            "intent": intent,
+            "fahrzeug": fahrzeug or listing_id,
+            "lang": i18n.normalise(lang),
+        },
+    )
     return {
-        "resourceUri": "ui://formular/intake.html",
+        "resourceUri": uri,
         "mimeType": "text/html;profile=mcp-app",
-        "html": render_formular(intent, fahrzeug or listing_id, listing_id, lang),
+        "html": html,
+        "quelle": mcp_client.mode(),
     }
 
 
@@ -331,26 +343,30 @@ def app_kasse(
     betrag_eur: int = 0,
     lang: str = "de",
 ) -> dict:
-    """The kasse MCP App surface. Simulated throughout."""
+    """The kasse MCP App surface, fetched from its MCP server. Simulated throughout."""
     norm = i18n.normalise(lang)
-    order = build_order(
-        listing_id,
-        fahrzeug or listing_id,
-        intent,
-        betrag_eur * 100,
-        kaution_cent=50_000 if intent == "miete" else 0,
-        abholort="Hamburg" if intent == "miete" else "",
-        zeitraum=(
-            ("12. bis 14. September" if norm == "de" else "12 to 14 September")
-            if intent == "miete"
-            else ""
-        ),
-        lang=norm,
+    uri, html = mcp_client.surface_html(
+        "kasse",
+        {
+            "listing_id": listing_id,
+            "fahrzeug": fahrzeug or listing_id,
+            "intent": intent,
+            "betrag_eur": betrag_eur,
+            "kaution_eur": 500 if intent == "miete" else 0,
+            "abholort": "Hamburg" if intent == "miete" else "",
+            "zeitraum": (
+                ("12. bis 14. September" if norm == "de" else "12 to 14 September")
+                if intent == "miete"
+                else ""
+            ),
+            "lang": norm,
+        },
     )
     return {
-        "resourceUri": "ui://kasse/checkout.html",
+        "resourceUri": uri,
         "mimeType": "text/html;profile=mcp-app",
-        "html": render_kasse(order, norm),
+        "html": html,
+        "quelle": mcp_client.mode(),
     }
 
 
@@ -363,22 +379,17 @@ class BridgeCall(BaseModel):
 
 @app.post("/api/app/bridge")
 def app_bridge(call: BridgeCall) -> dict[str, Any]:
-    """The app bridge. Surfaces call their server's tools through here.
+    """The app bridge, hosted here rather than by the AG-UI middleware.
 
-    This is the piece we host ourselves rather than delegating to the AG-UI MCP Apps
-    middleware, per the Path 2 decision in docs/spike-notes.md.
+    Only tools a surface is allowed to reach are routed. Anything else is refused, so
+    a sandboxed iframe cannot use the bridge as a general remote procedure call.
     """
-    from mcpapps.formular.server import formular_absenden, formular_daten
-
-    handlers = {
-        "formular_absenden": formular_absenden,
-        "formular_daten": formular_daten,
-        "kasse_bestaetigen": kasse_bestaetigen,
-    }
-    handler = handlers.get(call.tool)
-    if handler is None:
+    if call.tool not in mcp_client.TOOL_OWNER:
         raise HTTPException(404, f"Unbekanntes Werkzeug {call.tool!r}")
-    return {"result": handler(**call.args)}
+    try:
+        return {"result": mcp_client.call_tool(call.tool, call.args)}
+    except KeyError:
+        raise HTTPException(404, f"Unbekanntes Werkzeug {call.tool!r}") from None
 
 
 if __name__ == "__main__":

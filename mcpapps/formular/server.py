@@ -218,6 +218,19 @@ def formular_daten(listing_id: str) -> str:
     return json.dumps(werte, ensure_ascii=False)
 
 
+@mcp.tool(
+    description=(
+        "Liefert die gerenderte Oberfläche für einen konkreten Fall. Der ui://-Eintrag "
+        "bleibt die Kennung der App; dieser Aufruf liefert die Variante für Flow, "
+        "Fahrzeug und Sprache."
+    )
+)
+def formular_render(
+    listing_id: str, intent: str = "kauf", fahrzeug: str = "", lang: str = "de"
+) -> str:
+    return _render(intent, fahrzeug or listing_id, listing_id, i18n.normalise(lang))
+
+
 def render_for(
     intent: str, fahrzeug: str, listing_id: str, lang: str = DEFAULT_LANG
 ) -> str:
@@ -226,6 +239,13 @@ def render_for(
 
 
 if __name__ == "__main__":
+    import os
+
     import uvicorn
 
-    uvicorn.run(mcp.streamable_http_app(), host="0.0.0.0", port=3001, log_level="warning")
+    uvicorn.run(
+        mcp.streamable_http_app(),
+        host=os.environ.get("HOST", "0.0.0.0"),
+        port=int(os.environ.get("PORT", "3001")),
+        log_level="warning",
+    )
