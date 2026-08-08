@@ -344,6 +344,14 @@ id, and assert equality.
   no real credential may be committed.
 - **FR-041**: The repository MUST document what the system does, how to run it, how ranking
   works, how to run the evaluations, and what the evaluations produced.
+- **FR-042**: The system MUST run end to end on services that carry no billing
+  relationship, so that a reviewer can start it without a payment method.
+- **FR-043**: The model vendor and the payment vendor MUST each be selected by
+  configuration and reached through a factory. No component outside the respective provider
+  package may reference a vendor by name.
+- **FR-044**: The system MUST degrade legibly when a model provider rate limit is reached,
+  reporting that it is throttled rather than failing silently or presenting an empty result
+  as an answer.
 
 ### Key Entities
 
@@ -417,7 +425,10 @@ id, and assert equality.
 - Vehicle imagery is placeholder. No manufacturer photography is used.
 - Cost of ownership figures are transparent estimates from published formulas and segment
   averages, presented as estimates rather than quotations.
-- The evaluation harness consumes model credits, so it runs on demand rather than on every
-  change.
+- The system runs on free service tiers. Those tiers impose request rate ceilings, so a
+  multistep turn that issues several model calls can be throttled. The system is expected
+  to surface throttling as a visible state rather than as a failure.
+- The evaluation harness issues many model calls against a rate limited free tier, so it
+  runs on demand rather than on every change, and may need to run in batches.
 - The interface is German market facing with English glosses; full localisation is out of
   scope.

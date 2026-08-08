@@ -66,6 +66,32 @@ deterministically, never by asking a model whether it did well.
 Rationale: the failure mode of fast agentic development is confident, untested
 integration. The counter is a habit of proof.
 
+### VI. Vendors Sit Behind Seams
+
+No module outside `agent/model/` may import a model vendor, and no module outside
+`agent/payment/` may import a payment vendor. Both are resolved by a factory reading
+configuration, and both return typed results rather than vendor shaped dictionaries.
+Changing either vendor MUST be a configuration change plus one new class, never a change
+to the agent, the surfaces, or the tests.
+
+Rationale: the free services this project runs on are the least stable part of the stack
+and we have no commercial relationship that would give us warning before one degrades.
+The seam costs a few dozen lines now. Discovering at hour thirty that a vendor is
+threaded through the agent, the session and the tests costs the submission.
+
+## Cost Constraint
+
+The project MUST cost nothing to build or to run. Every dependency and every service
+carries no billing relationship: no paid tier, no card on file, no prepaid credits, and no
+trial balance that expires. A dependency that cannot meet this is replaced, not budgeted
+for.
+
+This constraint is load bearing rather than incidental. It is the reason the agent harness
+is model agnostic, the reason the model provider is resolved through a factory, and the
+reason a hosted service is only adopted after its free terms have been checked and
+recorded. Any new dependency MUST be audited against this before it enters the tree, and
+the audit recorded in `research.md`.
+
 ## Data and Intellectual Property Constraints
 
 The marketplace is a generated mock, produced by a seeded deterministic generator
@@ -121,4 +147,13 @@ Compliance is checked at three gates: before planning, before implementation, an
 any claim of completion. A change that violates a principle is reworked or the principle
 is amended in the open; it is not waived quietly.
 
-**Version**: 1.0.0 | **Ratified**: 2026-08-07 | **Last Amended**: 2026-08-07
+### Amendment log
+
+**1.1.0, 2026-08-07.** Added principle VI, vendors sit behind seams, and the cost
+constraint section. Prompted by a budget change requiring the project to cost nothing to
+build or run, which made the Anthropic API unusable and moved the agent harness from the
+Claude Agent SDK to LangChain DeepAgents. The harness decision, its rationale and its
+rejected alternatives are recorded in `specs/001-fahrbereit-agent/research.md`. Principles
+I through V are unchanged. No principle was waived to accommodate the change.
+
+**Version**: 1.1.0 | **Ratified**: 2026-08-07 | **Last Amended**: 2026-08-07

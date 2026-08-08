@@ -23,24 +23,31 @@ fails.
 
 ---
 
-## Phase 0: De-risking (gates M-2, M-3, M-4)
+## Phase 0: De-risking (gates M-1, M-2, M-3, M-4)
 
-**Blocked**: requires a working API key in the build environment.
+**Blocked**: requires a Google AI Studio API key in the build environment.
 
+- [ ] T000 Spike 0. Verify the model path before anything is built on it: one minimal
+  call through `ChatGoogleGenerativeAI`, then one multi tool calling exchange, then one
+  `create_deep_agent` run that calls a trivial tool and returns. Record observed latency
+  and any throttling. This gates T001 and T002, which both need a working agent.
 - [ ] T001 Spike A. Does the MCP Apps middleware render an app surface in chat behind an
-  external Claude Agent SDK endpoint? One MCP server, one tool carrying
-  `_meta.ui.resourceUri`, one single file hello world surface, one SDK session, one React
-  page. Success requires both a render and a button click round trip. Scratch tree only.
+  external Python AG-UI endpoint? One MCP server, one tool carrying
+  `_meta.ui.resourceUri`, one single file hello world surface, one DeepAgents session
+  behind `add_langgraph_fastapi_endpoint`, one Node process running the middleware, one
+  React page. Success requires both a render and a button click round trip. Scratch tree
+  only.
 - [ ] T002 Spike B. Render a car card with image, specification table and action from an
-  agent emitted message against a catalog built with `createCatalog`, and confirm the
-  surface update, component update, data model update and begin rendering flow. Scratch
-  tree only.
-- [ ] T003 Record both outcomes in `docs/spike-notes.md` with exact error text on any
+  agent emitted message, using `ag_ui_langgraph.get_a2ui_tools` against a catalog built
+  with `createCatalog`, and confirm the surface update, component update, data model
+  update and begin rendering flow. Scratch tree only.
+- [ ] T003 Record all outcomes in `docs/spike-notes.md` with exact error text on any
   failure, state which architecture path is selected, then discard the spike code.
 
-**Spike A fallback order**: Node process hosting the middleware in front of the Python
-endpoint, then hosting the app bridge directly in React and rendering the iframe
-ourselves. The path is reported before anything is built on it.
+**Spike A path**: under this stack the Node process hosting the middleware in front of the
+Python endpoint is the documented topology, not a fallback. The remaining fallback is
+hosting the app bridge directly in React and rendering the iframe ourselves. The path is
+reported before anything is built on it.
 
 ---
 
@@ -53,9 +60,19 @@ checkout, from a clean clone via `docker compose up`. Shallow and plain by desig
 
 - [x] T004 Scaffold the spec-kit workflow and add `.gitignore`.
 - [ ] T005 Create the source tree from plan.md.
-- [ ] T006 [P] Add `pyproject.toml` pinning the Python dependencies.
-- [ ] T007 [P] Add `.env.example` with placeholder values for `ANTHROPIC_API_KEY`,
-  `PAYMENT_PROVIDER` and the Langfuse variables.
+- [ ] T006 [P] Add `pyproject.toml` pinning the Python dependencies from plan.md,
+  including `fastapi` and `uvicorn`, which `ag-ui-langgraph` needs but does not declare.
+- [ ] T007 [P] Add `.env.example` with placeholder values for `MODEL_PROVIDER`,
+  `GOOGLE_API_KEY`, `PAYMENT_PROVIDER` and the Langfuse variables. No Anthropic key is
+  required by this project.
+- [ ] T007a Implement the model provider seam in `agent/model/`: `factory.py` reading
+  `MODEL_PROVIDER` and returning a `BaseChatModel`, `gemini.py`, and
+  `openai_compatible.py` covering Cerebras and Groq through a `base_url` override.
+  Nothing outside this package imports a vendor.
+- [ ] T007b [P] Test the seam in `tests/test_model_factory.py`: the factory returns the
+  right class per configuration value, raises legibly on an unknown value, and no module
+  outside `agent/model/` imports a vendor package. The last assertion is a grep over the
+  tree and is what actually keeps the seam honest.
 
 ### Shallow data
 
@@ -75,14 +92,21 @@ checkout, from a clean clone via `docker compose up`. Shallow and plain by desig
 ### Shallow agent (M-1)
 
 - [ ] T013 Write a minimal system prompt and interview policy in `agent/prompts/`.
-- [ ] T014 Orchestrate the session in `agent/session.py` with tools registered in process.
-- [ ] T015 Expose the agent over AG-UI in `agent/server.py`.
+- [ ] T014 Orchestrate the session in `agent/session.py` with `create_deep_agent`, passing
+  the model from the factory, the tools, and a LangGraph checkpointer.
+- [ ] T015 Expose the agent over AG-UI in `agent/server.py` using
+  `add_langgraph_fastapi_endpoint`.
+- [ ] T015a Handle provider rate limiting as a visible state rather than a failure, per
+  FR-044.
 
 ### Shallow interface (M-4, one surface)
 
 - [ ] T016 Scaffold the React client in `ui/` with the transport client and a session id.
 - [ ] T017 Define a minimal component catalog in `ui/src/a2ui/` and a plain car card list
-  surface driven by agent emitted messages.
+  surface, emitted from the agent side via `ag_ui_langgraph.get_a2ui_tools`.
+- [ ] T017a Stand up the Node process running `MCPAppsMiddleware` in front of the Python
+  AG-UI endpoint, as a compose service. This is the documented topology, so it is part of
+  the architecture rather than a contingency.
 
 ### Shallow MCP Apps (M-2, M-3)
 
@@ -153,7 +177,9 @@ Each task replaces one shallow piece with the real one, keeping the system worki
 
 ### Real state (M-7)
 
-- [ ] T037 Replace the in memory store with SQLite persistence in `agent/store.py`.
+- [ ] T037 Replace the in memory store with SQLite persistence in `agent/store.py`, and
+  attach a persistent LangGraph checkpointer for conversation continuity. These are two
+  separate concerns sharing one database, per plan.md.
 - [ ] T038 Verify state survives a page refresh and a backend restart.
 - [ ] T039 Implement the invalidation map from data-model.md, so a budget change discards
   the ranking and keeps the interview.
@@ -203,9 +229,9 @@ Each task replaces one shallow piece with the real one, keeping the system worki
 
 ## Milestone 4: Bonus (target hour 41, cut first if behind)
 
-- [ ] T054 Wire OpenTelemetry and Langfuse in `agent/observability.py`, instrumented at
-  startup, with ranking tool inputs and outputs attached to spans. Requires Langfuse keys,
-  which must be requested.
+- [ ] T054 Wire OpenTelemetry and Langfuse in `agent/observability.py` using
+  `openinference-instrumentation-langchain`, instrumented at startup, with ranking tool
+  inputs and outputs attached to spans. Requires Langfuse keys, which must be requested.
 - [ ] T055 Write eight personas in `evals/personas.json`, each with a hidden ground truth
   need.
 - [ ] T056 Build the harness in `evals/run_evals.py` scoring slot filling completeness,
