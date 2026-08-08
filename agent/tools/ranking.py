@@ -27,6 +27,8 @@ from typing import Callable, Iterable, Optional, Sequence
 
 from pydantic import BaseModel, Field
 
+from agent import i18n
+from agent.i18n import DEFAULT_LANG, Lang
 from agent.listing import PLAKETTEN_RANG, Listing, load_listings
 from agent.state import Dimension, Intent, InterviewState
 from agent.tools.geo import distance_km
@@ -48,28 +50,26 @@ CONSTRAINT_ORDER: tuple[str, ...] = (
     "entfernung",
 )
 
-# Human readable, for the progress surface. The user sees these, not the keys.
+def constraint_label(key: str, lang: Lang = DEFAULT_LANG) -> str:
+    """Human readable constraint name. The user sees these, not the keys."""
+    return i18n.t(f"c.{key}", lang)
+
+
+def dimension_label(dim: Dimension, lang: Lang = DEFAULT_LANG) -> str:
+    return i18n.t(f"dim.{dim.value}", lang)
+
+
+# Retained for callers that want the German set without passing a language.
 CONSTRAINT_LABELS: dict[str, str] = {
-    "angebotsart": "Angebotsart",
-    "kategorie": "Fahrzeugkategorie",
-    "budget": "Budget",
-    "getriebe": "Getriebe",
-    "kraftstoff": "Kraftstoff",
-    "sitzplaetze": "Sitzplätze",
-    "kofferraum": "Kofferraumvolumen",
-    "umweltplakette": "Umweltplakette",
-    "kilometerstand": "Kilometerstand",
-    "unfallfrei": "Unfallfreiheit",
-    "entfernung": "Entfernung",
+    key: i18n.t(f"c.{key}", "de")
+    for key in (
+        "angebotsart", "kategorie", "budget", "getriebe", "kraftstoff", "sitzplaetze",
+        "kofferraum", "umweltplakette", "kilometerstand", "unfallfrei", "entfernung",
+    )
 }
 
 DIMENSION_LABELS: dict[Dimension, str] = {
-    Dimension.PREIS_SPIELRAUM: "Preisspielraum",
-    Dimension.GESAMTKOSTEN: "Gesamtkosten",
-    Dimension.ALTER_LAUFLEISTUNG: "Alter und Laufleistung",
-    Dimension.EINSATZZWECK: "Einsatzzweck",
-    Dimension.ZUSTAND: "Zustand",
-    Dimension.ENTFERNUNG: "Entfernung",
+    dim: i18n.t(f"dim.{dim.value}", "de") for dim in Dimension
 }
 
 
@@ -84,16 +84,28 @@ class FilterReport(BaseModel):
     def ausgeschlossen_gesamt(self) -> int:
         return sum(self.ausgeschlossen.values())
 
-    def erklaerung(self) -> str:
+    def erklaerung(self, lang: Lang = DEFAULT_LANG) -> str:
+        total = i18n.fmt_int(self.gesamt, lang)
+        left = i18n.fmt_int(self.uebrig, lang)
         if not self.ausgeschlossen:
-            return f"{self.gesamt} Angebote geprüft, keines ausgeschlossen."
+            return (
+                f"{total} Angebote geprüft, keines ausgeschlossen."
+                if lang == "de"
+                else f"{total} listings checked, none excluded."
+            )
         parts = [
-            f"{CONSTRAINT_LABELS.get(k, k)} {v}"
+            f"{constraint_label(k, lang)} {i18n.fmt_int(v, lang)}"
             for k, v in sorted(self.ausgeschlossen.items(), key=lambda kv: -kv[1])
         ]
+        dropped = i18n.fmt_int(self.ausgeschlossen_gesamt, lang)
+        if lang == "de":
+            return (
+                f"{total} Angebote geprüft, {dropped} ausgeschlossen "
+                f"({', '.join(parts)}), {left} verblieben."
+            )
         return (
-            f"{self.gesamt} Angebote geprüft, {self.ausgeschlossen_gesamt} ausgeschlossen "
-            f"({', '.join(parts)}), {self.uebrig} verblieben."
+            f"{total} listings checked, {dropped} excluded "
+            f"({', '.join(parts)}), {left} remaining."
         )
 
     def groesster_ausschluss(self) -> Optional[str]:
@@ -122,7 +134,7 @@ class DimensionScore(BaseModel):
     begrenzt_durch: Optional[str] = None  # the component that capped a weakest link
     relativ: bool = True  # scored against the pool, not on an absolute scale
 
-    def erklaerung(self) -> str:
+    def erklaerung(self, lang: Lang = DEFAULT_LANG) -> str:
         """A sentence a user can act on, not a bare number."""
         if self.begrenzt_durch:
             limiting = next(
@@ -132,17 +144,35 @@ class DimensionScore(BaseModel):
                 # The headline number is a rank in the field; the limit is internal to
                 # the composite. Saying both plainly avoids reading a rank of 100 and a
                 # limiting component as a contradiction.
+                if lang == "de":
+                    return (
+                        f"{self.label}: Rang {self.rohwert:.0f} von 100 im Feld, "
+                        f"intern begrenzt durch {limiting.name} ({limiting.detail})"
+                    )
                 return (
-                    f"{self.label}: Rang {self.rohwert:.0f} von 100 im Feld, "
-                    f"intern begrenzt durch {limiting.name} ({limiting.detail})"
+                    f"{self.label}: rank {self.rohwert:.0f} of 100 in the field, "
+                    f"internally limited by {limiting.name} ({limiting.detail})"
                 )
-        return f"{self.label}: Rang {self.rohwert:.0f} von 100 im Feld, {self.begruendung}"
+        if lang == "de":
+            return (
+                f"{self.label}: Rang {self.rohwert:.0f} von 100 im Feld, {self.begruendung}"
+            )
+        return f"{self.label}: rank {self.rohwert:.0f} of 100 in the field, {self.begruendung}"
 
 
 class ScoreBreakdown(BaseModel):
     dimensionen: list[DimensionScore]
     total: float
     basis_anzahl: int = 0  # how many survivors this score was ranked against
+
+    def relativ_hinweis_lang(self, lang: Lang = DEFAULT_LANG) -> str:
+        if lang == "de":
+            return self.relativ_hinweis
+        return (
+            f"The score is a placing among {self.basis_anzahl} remaining listings, not "
+            f"an absolute mark. Change the filters and the comparison field changes, "
+            f"and with it the score."
+        )
 
     @property
     def relativ_hinweis(self) -> str:
@@ -158,14 +188,14 @@ class ScoreBreakdown(BaseModel):
             f"Vergleichsfeld und damit der Punktwert."
         )
 
-    def top_faktoren(self, n: int = 3) -> list[str]:
+    def top_faktoren(self, n: int = 3, lang: Lang = DEFAULT_LANG) -> list[str]:
         ranked = sorted(self.dimensionen, key=lambda d: -d.beitrag)
-        return [d.erklaerung() for d in ranked[:n] if d.beitrag > 0]
+        return [d.erklaerung(lang) for d in ranked[:n] if d.beitrag > 0]
 
-    def schwachstellen(self, n: int = 2) -> list[str]:
+    def schwachstellen(self, n: int = 2, lang: Lang = DEFAULT_LANG) -> list[str]:
         """The dimensions holding this car back, named so they can be acted on."""
         ranked = sorted(self.dimensionen, key=lambda d: d.rohwert)
-        return [d.erklaerung() for d in ranked[:n] if d.rohwert < 50]
+        return [d.erklaerung(lang) for d in ranked[:n] if d.rohwert < 50]
 
 
 class Comparison(BaseModel):
@@ -332,7 +362,9 @@ def _weakest_link(components: list[Component]) -> tuple[float, Optional[str]]:
     return worst.wert, worst.name
 
 
-def _einsatzzweck_components(listing: Listing, state: InterviewState) -> list[Component]:
+def _einsatzzweck_components(
+    listing: Listing, state: InterviewState, lang: Lang = DEFAULT_LANG
+) -> list[Component]:
     """One component per thing the stated use case actually demands."""
     from agent.state import UseCaseTag
 
@@ -346,16 +378,19 @@ def _einsatzzweck_components(listing: Listing, state: InterviewState) -> list[Co
         needed = (constraints.min_kofferraum_liter if constraints else None) or 400
         components.append(
             Component(
-                name="Sitzplätze",
+                name=i18n.t("k.Sitzplätze", lang),
                 wert=_clamp((listing.sitzplaetze - 2) / 5 * 100),
-                detail=f"{listing.sitzplaetze} Sitze",
+                detail=(f"{listing.sitzplaetze} Sitze" if lang == "de"
+                        else f"{listing.sitzplaetze} seats"),
             )
         )
         components.append(
             Component(
-                name="Kofferraum",
+                name=i18n.t("k.Kofferraum", lang),
                 wert=_clamp(listing.kofferraum_liter / 700 * 100),
-                detail=f"{listing.kofferraum_liter} l gegen {needed} l gewünscht",
+                detail=(f"{listing.kofferraum_liter} l gegen {needed} l gewünscht"
+                        if lang == "de"
+                        else f"{listing.kofferraum_liter} l against {needed} l wanted"),
             )
         )
 
@@ -363,9 +398,10 @@ def _einsatzzweck_components(listing: Listing, state: InterviewState) -> list[Co
         # INVENTED. 900 litres treated as a full load volume for a move.
         components.append(
             Component(
-                name="Ladevolumen",
+                name=i18n.t("k.Ladevolumen", lang),
                 wert=_clamp(listing.kofferraum_liter / 900 * 100),
-                detail=f"{listing.kofferraum_liter} l Ladevolumen",
+                detail=(f"{listing.kofferraum_liter} l Ladevolumen" if lang == "de"
+                        else f"{listing.kofferraum_liter} l load volume"),
             )
         )
 
@@ -375,9 +411,10 @@ def _einsatzzweck_components(listing: Listing, state: InterviewState) -> list[Co
         # this is two removes from the thing actually being judged.
         components.append(
             Component(
-                name="Stadttauglichkeit",
+                name=i18n.t("k.Stadttauglichkeit", lang),
                 wert=_clamp(100 - (listing.leermasse_kg - 900) / 1200 * 100),
-                detail=f"{listing.leermasse_kg} kg Leermasse",
+                detail=(f"{listing.leermasse_kg} kg Leermasse" if lang == "de"
+                        else f"{listing.leermasse_kg} kg kerb weight"),
             )
         )
 
@@ -389,13 +426,13 @@ def _einsatzzweck_components(listing: Listing, state: InterviewState) -> list[Co
         else:
             wert = _clamp(100 - (listing.verbrauch_l_100km or 8) / 12 * 100)
             detail = f"{listing.verbrauch_l_100km} l/100 km"
-        components.append(Component(name="Verbrauch", wert=wert, detail=detail))
+        components.append(Component(name=i18n.t("k.Verbrauch", lang), wert=wert, detail=detail))
 
     if UseCaseTag.LANGSTRECKE in tags:
         # INVENTED. 150 kW treated as ample for long distance work.
         components.append(
             Component(
-                name="Motorisierung",
+                name=i18n.t("k.Motorisierung", lang),
                 wert=_clamp(listing.leistung_kw / 150 * 100),
                 detail=f"{listing.leistung_kw} kW",
             )
@@ -404,34 +441,39 @@ def _einsatzzweck_components(listing: Listing, state: InterviewState) -> list[Co
     if UseCaseTag.GEWERBLICH in tags and listing.listing_type == "kauf":
         components.append(
             Component(
-                name="Vorsteuerabzug",
+                name=i18n.t("k.Vorsteuerabzug", lang),
                 wert=100.0 if listing.mwst_ausweisbar else 40.0,
-                detail="MwSt. ausweisbar" if listing.mwst_ausweisbar else "MwSt. nicht ausweisbar",
+                detail=(("MwSt. ausweisbar" if listing.mwst_ausweisbar else "MwSt. nicht ausweisbar")
+                        if lang == "de"
+                        else ("VAT deductible" if listing.mwst_ausweisbar else "VAT not deductible")),
             )
         )
 
     return components
 
 
-def _zustand_components(listing: Listing) -> list[Component]:
+def _zustand_components(listing: Listing, lang: Lang = DEFAULT_LANG) -> list[Component]:
     hu = listing.hu_monate_verbleibend()
     return [
         Component(
-            name="Unfallfreiheit",
+            name=i18n.t("k.Unfallfreiheit", lang),
             wert=100.0 if listing.unfallfrei else 0.0,
-            detail="unfallfrei" if listing.unfallfrei else "Unfallschaden",
+            detail=(("unfallfrei" if listing.unfallfrei else "Unfallschaden") if lang == "de"
+                    else ("accident-free" if listing.unfallfrei else "accident damage")),
         ),
         # INVENTED. 25 points deducted per previous owner beyond the first.
         Component(
-            name="Vorbesitzer",
+            name=i18n.t("k.Vorbesitzer", lang),
             wert=_clamp(100 - (listing.vorbesitzer - 1) * 25),
-            detail=f"{listing.vorbesitzer} Vorbesitzer",
+            detail=(f"{listing.vorbesitzer} Vorbesitzer" if lang == "de"
+                    else f"{listing.vorbesitzer} previous owners"),
         ),
         # INVENTED. A full 24 months until the next inspection scores full marks.
         Component(
-            name="HU",
+            name=i18n.t("k.HU", lang),
             wert=_clamp(hu / 24 * 100),
-            detail=f"HU noch {max(hu, 0)} Monate" if hu > 0 else "HU fällig",
+            detail=((f"HU noch {max(hu, 0)} Monate" if hu > 0 else "HU fällig") if lang == "de"
+                    else (f"test valid {max(hu, 0)} more months" if hu > 0 else "test due")),
         ),
     ]
 
@@ -440,6 +482,7 @@ def score_listings(
     survivors: Sequence[Listing],
     state: InterviewState,
     tco_fn: Optional[Callable[[Listing, InterviewState], int]] = None,
+    lang: Lang = DEFAULT_LANG,
 ) -> list[tuple[Listing, ScoreBreakdown, Optional[int]]]:
     """Stage two. Weighted sum over named dimensions, normalised against the pool.
 
@@ -480,8 +523,8 @@ def score_listings(
     fallback = known[len(known) // 2] if known else 0.0
     distances = [d if d is not None else fallback for d in raw_distances]
 
-    zweck_parts = [_einsatzzweck_components(l, state) for l in survivors]
-    zustand_parts = [_zustand_components(l) for l in survivors]
+    zweck_parts = [_einsatzzweck_components(l, state, lang) for l in survivors]
+    zustand_parts = [_zustand_components(l, lang) for l in survivors]
     zweck = [_weakest_link(c) for c in zweck_parts]
     zustand = [_weakest_link(c) for c in zustand_parts]
 
@@ -496,33 +539,58 @@ def score_listings(
     p_entfernung = _percentile_scores(distances, higher_is_better=False)
 
     def de(value: int) -> str:
-        return format(int(value), ",").replace(",", ".")
+        return i18n.fmt_int(value, lang)
 
     results: list[tuple[Listing, ScoreBreakdown, Optional[int]]] = []
 
     for i, listing in enumerate(survivors):
-        note_preis = (
-            f"{de(prices[i])} EUR bei Budget {de(ceiling)} EUR"
-            if ceiling
-            else f"{de(prices[i])} EUR, kein Budget genannt"
-        )
+        if ceiling:
+            note_preis = (
+                f"{de(prices[i])} EUR bei Budget {de(ceiling)} EUR"
+                if lang == "de"
+                else f"{de(prices[i])} EUR against a budget of {de(ceiling)} EUR"
+            )
+        else:
+            note_preis = (
+                f"{de(prices[i])} EUR, kein Budget genannt"
+                if lang == "de"
+                else f"{de(prices[i])} EUR, no budget stated"
+            )
 
         if tco_fn:
-            note_kosten = f"{de(costs[i])} EUR Gesamtkosten über fünf Jahre"
+            note_kosten = (
+                f"{de(costs[i])} EUR Gesamtkosten über fünf Jahre"
+                if lang == "de"
+                else f"{de(costs[i])} EUR total cost over five years"
+            )
         else:
             unit = "kWh" if listing.ist_elektro else "l"
             base = listing.verbrauch_kwh_100km or listing.verbrauch_l_100km
-            note_kosten = f"Verbrauch {base} {unit}/100 km, Näherung ohne Gesamtkosten"
+            note_kosten = (
+                f"Verbrauch {base} {unit}/100 km, Näherung ohne Gesamtkosten"
+                if lang == "de"
+                else f"consumption {base} {unit}/100 km, proxy without full cost model"
+            )
 
         note_zweck = "; ".join(f"{c.name} {c.detail}" for c in zweck_parts[i]) or (
             "kein Einsatzzweck angegeben, neutral bewertet"
+            if lang == "de"
+            else "no use case stated, scored neutrally"
         )
         note_zustand = ", ".join(c.detail for c in zustand_parts[i])
-        note_entfernung = (
-            f"{distances[i]:.0f} km bis {listing.standort_ort}"
-            if raw_distances[i] is not None
-            else "Entfernung unbekannt, als Mittelwert gewertet"
-        )
+        if raw_distances[i] is not None:
+            # Place name is a proper noun and stays as it is in both languages.
+            note_entfernung = (
+                f"{distances[i]:.0f} km bis {listing.standort_ort}"
+                if lang == "de"
+                else f"{distances[i]:.0f} km to {listing.standort_ort}"
+            )
+        else:
+            note_entfernung = (
+                "Entfernung unbekannt, als Mittelwert gewertet"
+                if lang == "de"
+                else "distance unknown, scored at the median"
+            )
 
         spec = [
             (Dimension.PREIS_SPIELRAUM, p_preis[i], note_preis, [], None),
@@ -530,7 +598,11 @@ def score_listings(
             (
                 Dimension.ALTER_LAUFLEISTUNG,
                 p_alter[i],
-                f"EZ {listing.erstzulassung}, {de(listing.kilometerstand)} km",
+                (
+                    f"EZ {listing.erstzulassung}, {de(listing.kilometerstand)} km"
+                    if lang == "de"
+                    else f"first reg. {listing.erstzulassung}, {de(listing.kilometerstand)} km"
+                ),
                 [],
                 None,
             ),
@@ -542,7 +614,7 @@ def score_listings(
         scored = [
             DimensionScore(
                 name=key,
-                label=DIMENSION_LABELS[key],
+                label=dimension_label(key, lang),
                 gewicht=round(weights[key], 4),
                 rohwert=round(raw_value, 2),
                 beitrag=round(weights[key] * raw_value, 4),
@@ -590,10 +662,11 @@ def rank(
     listings: Optional[Sequence[Listing]] = None,
     limit: int = 5,
     tco_fn: Optional[Callable[[Listing, InterviewState], int]] = None,
+    lang: Lang = DEFAULT_LANG,
 ) -> RankingResult:
     """The whole pipeline. Deterministic: same state and dataset, same output."""
     survivors, report = hard_filter(state, listings)
-    scored = score_listings(survivors, state, tco_fn=tco_fn)
+    scored = score_listings(survivors, state, tco_fn=tco_fn, lang=lang)
 
     # Sort by score, then by id, so ties never reorder between runs.
     scored.sort(key=lambda item: (-item[1].total, item[0].id))

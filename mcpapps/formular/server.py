@@ -17,47 +17,45 @@ from mcp.server import MCPServer
 from mcp.server.apps import Apps
 from mcp.server.mcpserver.context import Context
 
+from agent import i18n
+from agent.i18n import DEFAULT_LANG, Lang
 from mcpapps.shared.style import CSS
 
 RESOURCE_URI = "ui://formular/intake.html"
 
 # Milestone 1 scope: three fields per flow, no validation beyond required. The full
 # field set from data-model.md arrives in Milestone 2.
-FELDER: dict[str, list[dict[str, Any]]] = {
-    "kauf": [
-        {"name": "name", "label": "Name", "type": "text", "placeholder": "Vor- und Nachname"},
-        {"name": "email", "label": "E-Mail", "type": "email", "placeholder": "name@beispiel.de"},
-        {
-            "name": "zahlungsart",
-            "label": "Zahlungsart",
-            "type": "select",
-            "options": ["Barzahlung", "Finanzierung"],
-        },
-    ],
-    "miete": [
-        {"name": "name", "label": "Name", "type": "text", "placeholder": "Vor- und Nachname"},
-        {
-            "name": "fuehrerschein_seit",
-            "label": "Führerschein seit",
-            "type": "number",
-            "placeholder": "2015",
-        },
-        {
-            "name": "versicherung",
-            "label": "Versicherungsschutz",
-            "type": "select",
-            "options": ["Basis", "Komfort", "Premium"],
-        },
-    ],
-}
+def felder(intent: str, lang: Lang = DEFAULT_LANG) -> list[dict[str, Any]]:
+    """Three fields per flow, labelled in the requested language."""
+    if intent == "miete":
+        return [
+            {"name": "name", "label": i18n.t("form.name", lang), "type": "text",
+             "placeholder": i18n.t("form.name_ph", lang)},
+            {"name": "fuehrerschein_seit", "label": i18n.t("form.fs_seit", lang),
+             "type": "number", "placeholder": "2015"},
+            {"name": "versicherung", "label": i18n.t("form.versicherung", lang),
+             "type": "select",
+             "options": [i18n.t("form.basis", lang), i18n.t("form.komfort", lang),
+                         i18n.t("form.premium", lang)]},
+        ]
+    return [
+        {"name": "name", "label": i18n.t("form.name", lang), "type": "text",
+         "placeholder": i18n.t("form.name_ph", lang)},
+        {"name": "email", "label": i18n.t("form.email", lang), "type": "email",
+         "placeholder": "name@beispiel.de"},
+        {"name": "zahlungsart", "label": i18n.t("form.zahlungsart", lang), "type": "select",
+         "options": [i18n.t("form.barzahlung", lang), i18n.t("form.finanzierung", lang)]},
+    ]
 
 
-def _render(intent: str, fahrzeug: str, listing_id: str) -> str:
-    felder = FELDER.get(intent, FELDER["kauf"])
-    titel = "Kaufanfrage" if intent == "kauf" else "Mietanfrage"
+def _render(
+    intent: str, fahrzeug: str, listing_id: str, lang: Lang = DEFAULT_LANG
+) -> str:
+    feld_liste = felder(intent, lang)
+    titel = i18n.t("form.kaufanfrage" if intent == "kauf" else "form.mietanfrage", lang)
 
     rows = []
-    for feld in felder:
+    for feld in feld_liste:
         if feld["type"] == "select":
             options = "".join(f'<option value="{o}">{o}</option>' for o in feld["options"])
             control = f'<select id="{feld["name"]}" name="{feld["name"]}">{options}</select>'
@@ -74,10 +72,10 @@ def _render(intent: str, fahrzeug: str, listing_id: str) -> str:
             f"</div>"
         )
 
-    feld_namen = json.dumps([f["name"] for f in felder])
+    feld_namen = json.dumps([f["name"] for f in feld_liste])
 
     return f"""<!doctype html>
-<html lang="de"><head><meta charset="utf-8">
+<html lang="{lang}"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{titel}</title>
 <style>{CSS}</style>
@@ -85,7 +83,7 @@ def _render(intent: str, fahrzeug: str, listing_id: str) -> str:
 <body>
   <div class="eyebrow">fahrbereit &middot; {titel}</div>
   <h1>{fahrzeug}</h1>
-  <div class="dim" style="font-size:12px;margin-top:4px">Angebot {listing_id}</div>
+  <div class="dim" style="font-size:12px;margin-top:4px">{i18n.t("form.angebot", lang)} {listing_id}</div>
   <hr>
 
   <form id="f" novalidate>
@@ -93,15 +91,12 @@ def _render(intent: str, fahrzeug: str, listing_id: str) -> str:
       {"".join(rows)}
     </div>
     <div style="margin-top:18px">
-      <button type="submit" id="submit">Weiter zur Kasse</button>
+      <button type="submit" id="submit">{i18n.t("form.weiter", lang)}</button>
     </div>
   </form>
 
   <div class="status" id="status"></div>
-  <div class="footnote">
-    Ihre Angaben bleiben in dieser Unterhaltung. Es findet keine Weitergabe statt,
-    und es wird keine echte Buchung ausgelöst.
-  </div>
+  <div class="footnote">{i18n.t("form.fussnote", lang)}</div>
 
 <script>
   const FELDER = {feld_namen};
@@ -112,16 +107,16 @@ def _render(intent: str, fahrzeug: str, listing_id: str) -> str:
   function validate(data) {{
     const errors = {{}};
     for (const name of FELDER) {{
-      if (!String(data[name] ?? '').trim()) errors[name] = 'Pflichtfeld';
+      if (!String(data[name] ?? '').trim()) errors[name] = {json.dumps(i18n.t("form.pflichtfeld", lang))};
     }}
     if (data.email && !/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test(data.email)) {{
-      errors.email = 'Bitte eine gültige E-Mail-Adresse angeben';
+      errors.email = {json.dumps(i18n.t("form.email_ungueltig", lang))};
     }}
     if (data.fuehrerschein_seit) {{
       const jahr = Number(data.fuehrerschein_seit);
       const jetzt = new Date().getFullYear();
       if (!Number.isInteger(jahr) || jahr < 1950 || jahr > jetzt) {{
-        errors.fuehrerschein_seit = 'Jahr zwischen 1950 und ' + jetzt;
+        errors.fuehrerschein_seit = {json.dumps(i18n.t("form.jahr_zwischen", lang))} + ' ' + jetzt;
       }}
     }}
     return errors;
@@ -144,22 +139,22 @@ def _render(intent: str, fahrzeug: str, listing_id: str) -> str:
     showErrors(errors);
     if (Object.keys(errors).length) {{
       statusEl.className = 'status err';
-      statusEl.textContent = 'Bitte die markierten Felder prüfen.';
+      statusEl.textContent = {json.dumps(i18n.t("form.pruefen", lang))};
       return;
     }}
 
     statusEl.className = 'status';
-    statusEl.textContent = 'Wird übernommen...';
+    statusEl.textContent = {json.dumps(i18n.t("form.wird_uebernommen", lang))};
     document.getElementById('submit').disabled = true;
     try {{
       const result = await window.mcp.callTool('formular_absenden', {{
         listing_id: LISTING, intent: INTENT, daten: JSON.stringify(data),
       }});
       statusEl.className = 'status ok';
-      statusEl.textContent = 'Übernommen. Die Unterhaltung geht weiter.';
+      statusEl.textContent = {json.dumps(i18n.t("form.uebernommen", lang))};
     }} catch (err) {{
       statusEl.className = 'status err';
-      statusEl.textContent = 'Fehler: ' + err;
+      statusEl.textContent = {json.dumps(i18n.t("fehler", lang))} + ': ' + err;
       document.getElementById('submit').disabled = false;
     }}
   }});
@@ -195,7 +190,7 @@ def formular_oeffnen(
 
 apps.add_html_resource(
     RESOURCE_URI,
-    _render("kauf", "Fahrzeug", "FB-00000"),
+    _render("kauf", "Fahrzeug", "FB-00000", DEFAULT_LANG),
     title="Anfrageformular",
     description="Käufer- und Mieterdaten, direkt in der Unterhaltung.",
 )
@@ -223,9 +218,11 @@ def formular_daten(listing_id: str) -> str:
     return json.dumps(werte, ensure_ascii=False)
 
 
-def render_for(intent: str, fahrzeug: str, listing_id: str) -> str:
-    """Exposed for tests and for the React host, which renders the flow specific variant."""
-    return _render(intent, fahrzeug, listing_id)
+def render_for(
+    intent: str, fahrzeug: str, listing_id: str, lang: str = DEFAULT_LANG
+) -> str:
+    """Exposed for tests and for the React host, which renders the flow variant."""
+    return _render(intent, fahrzeug, listing_id, i18n.normalise(lang))
 
 
 if __name__ == "__main__":

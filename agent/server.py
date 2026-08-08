@@ -21,6 +21,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from agent import i18n
 from agent.state import (
     Budget,
     Dimension,
@@ -108,6 +109,7 @@ class WeightRequest(BaseModel):
     persona: str = "familie"
     gewichte: dict[str, float] | None = None
     limit: int = 6
+    lang: str = "de"
 
 
 # ------------------------------------------------------------------ routes
@@ -121,6 +123,7 @@ def health() -> dict[str, Any]:
         "status": "ok",
         "listings": len(load_listings()),
         "personas": sorted(PERSONAS),
+        "langs": list(i18n.LANGS),
         "payment_provider": os.environ.get("PAYMENT_PROVIDER", "mock"),
         "simuliert": True,
     }
@@ -155,12 +158,14 @@ def katalog(req: WeightRequest) -> dict[str, Any]:
             raise HTTPException(400, f"Unbekannte Dimensionen: {sorted(unknown)}")
         state.preferences_soft = state.preferences_soft.state(req.gewichte)
 
-    result = rank(state, limit=req.limit, tco_fn=tco_for_state)
+    lang = i18n.normalise(req.lang)
+    result = rank(state, limit=req.limit, tco_fn=tco_for_state, lang=lang)
 
     return {
-        "messages": build_messages(result, "Empfehlungen"),
-        "interview": _interview_payload(state),
+        "messages": build_messages(result, lang=lang),
+        "interview": _interview_payload(state, lang),
         "gewichte": result.gewichte,
+        "lang": lang,
     }
 
 
@@ -173,11 +178,14 @@ def gewichte(req: WeightRequest) -> dict[str, Any]:
     state = factory()
     if req.gewichte:
         state.preferences_soft = state.preferences_soft.state(req.gewichte)
-    result = rank(state, limit=req.limit, tco_fn=tco_for_state)
-    return {"messages": build_weight_update(result)}
+    lang = i18n.normalise(req.lang)
+    result = rank(state, limit=req.limit, tco_fn=tco_for_state, lang=lang)
+    return {"messages": build_weight_update(result, lang), "lang": lang}
 
 
-def _interview_payload(state: InterviewState) -> list[dict[str, Any]]:
+def _interview_payload(
+    state: InterviewState, lang: str = "de"
+) -> list[dict[str, Any]]:
     """The slot checklist, with inferred values marked. Feeds the progress panel."""
     rows = []
     for name in state.slot_names():
@@ -209,12 +217,17 @@ def _interview_payload(state: InterviewState) -> list[dict[str, Any]]:
 
 
 @app.get("/api/app/formular")
-def app_formular(listing_id: str = "FB-00001", intent: str = "kauf", fahrzeug: str = "") -> dict:
+def app_formular(
+    listing_id: str = "FB-00001",
+    intent: str = "kauf",
+    fahrzeug: str = "",
+    lang: str = "de",
+) -> dict:
     """The formular MCP App surface, for the client to render in a sandboxed iframe."""
     return {
         "resourceUri": "ui://formular/intake.html",
         "mimeType": "text/html;profile=mcp-app",
-        "html": render_formular(intent, fahrzeug or listing_id, listing_id),
+        "html": render_formular(intent, fahrzeug or listing_id, listing_id, lang),
     }
 
 
@@ -224,8 +237,10 @@ def app_kasse(
     fahrzeug: str = "",
     intent: str = "kauf",
     betrag_eur: int = 0,
+    lang: str = "de",
 ) -> dict:
     """The kasse MCP App surface. Simulated throughout."""
+    norm = i18n.normalise(lang)
     order = build_order(
         listing_id,
         fahrzeug or listing_id,
@@ -233,12 +248,17 @@ def app_kasse(
         betrag_eur * 100,
         kaution_cent=50_000 if intent == "miete" else 0,
         abholort="Hamburg" if intent == "miete" else "",
-        zeitraum="12. bis 14. September" if intent == "miete" else "",
+        zeitraum=(
+            ("12. bis 14. September" if norm == "de" else "12 to 14 September")
+            if intent == "miete"
+            else ""
+        ),
+        lang=norm,
     )
     return {
         "resourceUri": "ui://kasse/checkout.html",
         "mimeType": "text/html;profile=mcp-app",
-        "html": render_kasse(order),
+        "html": render_kasse(order, norm),
     }
 
 

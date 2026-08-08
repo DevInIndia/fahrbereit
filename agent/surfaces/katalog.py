@@ -25,7 +25,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from agent.tools.ranking import CONSTRAINT_LABELS, RankingResult
+from agent import i18n
+from agent.i18n import DEFAULT_LANG, Lang
+from agent.tools.ranking import RankingResult, constraint_label
 
 SURFACE_ID = "fahrbereit-katalog"
 CATALOG_ID = "fahrbereit/v1"
@@ -40,25 +42,32 @@ def _msg(kind: str, payload: dict[str, Any]) -> dict[str, Any]:
     return {"version": "v0.9", kind: payload}
 
 
-def _eckdaten(listing) -> str:
+def _eckdaten(listing, lang: Lang = DEFAULT_LANG) -> str:
     """The headline specification line, in the order a German listing quotes it."""
     teile = [
-        f"EZ {listing.erstzulassung}",
-        f"{listing.kilometerstand:,} km".replace(",", "."),
+        f"EZ {listing.erstzulassung}" if lang == "de" else f"reg. {listing.erstzulassung}",
+        f"{i18n.fmt_int(listing.kilometerstand, lang)} km",
         f"{listing.leistung_kw} kW ({listing.leistung_ps} PS)",
-        listing.getriebe,
-        listing.kraftstoff,
+        i18n.getriebe(listing.getriebe, lang),
+        i18n.kraftstoff(listing.kraftstoff, lang),
     ]
     return " · ".join(teile)
 
 
-def _preis(listing) -> str:
-    betrag = f"{listing.preis_referenz():,}".replace(",", ".")
-    return f"{betrag} EUR" if listing.listing_type == "kauf" else f"{betrag} EUR/Tag"
+def _preis(listing, lang: Lang = DEFAULT_LANG) -> str:
+    betrag = i18n.fmt_int(listing.preis_referenz(), lang)
+    if listing.listing_type == "kauf":
+        return f"{betrag} EUR"
+    return f"{betrag} EUR/Tag" if lang == "de" else f"{betrag} EUR/day"
 
 
-def build_messages(result: RankingResult, ueberschrift: str = "Empfehlungen") -> list[dict]:
+def build_messages(
+    result: RankingResult,
+    ueberschrift: str | None = None,
+    lang: Lang = DEFAULT_LANG,
+) -> list[dict]:
     """Translate a ranking result into an ordered list of A2UI messages."""
+    ueberschrift = ueberschrift or i18n.t("empfehlungen", lang)
     components: list[dict[str, Any]] = []
     kinder: list[str] = []
 
@@ -68,14 +77,14 @@ def build_messages(result: RankingResult, ueberschrift: str = "Empfehlungen") ->
             "Kopfzeile",
             {
                 "titel": ueberschrift,
-                "untertitel": result.report.erklaerung(),
+                "untertitel": result.report.erklaerung(lang),
             },
         )
     )
     kinder.append("kopf")
 
     ausgeschlossen = [
-        {"grund": CONSTRAINT_LABELS.get(key, key), "anzahl": count}
+        {"grund": constraint_label(key, lang), "anzahl": count}
         for key, count in result.report.ausgeschlossen.items()
     ]
     components.append(
@@ -97,12 +106,15 @@ def build_messages(result: RankingResult, ueberschrift: str = "Empfehlungen") ->
             "GewichtungsPanel",
             {
                 "gewichte": [
-                    {"name": name, "anteil": round(anteil, 4)}
+                    {"name": i18n.t(f"dim.{name}", lang), "anteil": round(anteil, 4)}
                     for name, anteil in sorted(result.gewichte.items(), key=lambda kv: -kv[1])
                 ],
                 "hinweis": (
                     "Die Voreinstellung ist ein Startpunkt, kein Urteil. "
                     "Jede Dimension ist einstellbar."
+                    if lang == "de"
+                    else "The default is a starting position, not a verdict. "
+                         "Every dimension is adjustable."
                 ),
             },
         )
@@ -131,11 +143,22 @@ def build_messages(result: RankingResult, ueberschrift: str = "Empfehlungen") ->
         vergleich = ""
         if rec.vergleich:
             v = rec.vergleich
-            vergleich = (
-                f"{v.punkte_vorsprung:+.1f} Punkte gegenüber {v.gegen_bezeichnung}, "
-                f"{v.preis_differenz_eur:+,} EUR Preis, "
-                f"{v.km_differenz:+,} km Laufleistung"
-            ).replace(",", ".")
+            preis_delta = ("+" if v.preis_differenz_eur >= 0 else "-") + i18n.fmt_int(
+                abs(v.preis_differenz_eur), lang
+            )
+            km_delta = ("+" if v.km_differenz >= 0 else "-") + i18n.fmt_int(
+                abs(v.km_differenz), lang
+            )
+            if lang == "de":
+                vergleich = (
+                    f"{v.punkte_vorsprung:+.1f} Punkte gegenüber {v.gegen_bezeichnung}, "
+                    f"{preis_delta} EUR Preis, {km_delta} km Laufleistung"
+                )
+            else:
+                vergleich = (
+                    f"{v.punkte_vorsprung:+.1f} points ahead of {v.gegen_bezeichnung}, "
+                    f"{preis_delta} EUR price, {km_delta} km mileage"
+                )
 
         components.append(
             _component(
@@ -145,16 +168,16 @@ def build_messages(result: RankingResult, ueberschrift: str = "Empfehlungen") ->
                     "listingId": listing.id,
                     "rang": rec.rang,
                     "bezeichnung": listing.bezeichnung,
-                    "kategorie": listing.category,
-                    "eckdaten": _eckdaten(listing),
-                    "preis": _preis(listing),
+                    "kategorie": i18n.kategorie(listing.category, lang),
+                    "eckdaten": _eckdaten(listing, lang),
+                    "preis": _preis(listing, lang),
                     "haendler": f"{listing.haendler}, {listing.standort_plz} {listing.standort_ort}",
                     "punkte": rec.score.total,
                     "basisAnzahl": rec.score.basis_anzahl,
-                    "relativHinweis": rec.score.relativ_hinweis,
+                    "relativHinweis": rec.score.relativ_hinweis_lang(lang),
                     "dimensionen": dimensionen,
-                    "topFaktoren": rec.score.top_faktoren(),
-                    "schwachstellen": rec.score.schwachstellen(),
+                    "topFaktoren": rec.score.top_faktoren(lang=lang),
+                    "schwachstellen": rec.score.schwachstellen(lang=lang),
                     "vergleich": vergleich,
                     "tcoGesamt": rec.tco_gesamt_eur or 0,
                     "istMiete": listing.listing_type == "miete",
@@ -171,7 +194,9 @@ def build_messages(result: RankingResult, ueberschrift: str = "Empfehlungen") ->
     ]
 
 
-def build_weight_update(result: RankingResult) -> list[dict]:
+def build_weight_update(
+    result: RankingResult, lang: Lang = DEFAULT_LANG
+) -> list[dict]:
     """Weights only, as a data model update.
 
     Sent on its own when the user moves a weight, so the surface updates in place
@@ -188,7 +213,10 @@ def build_weight_update(result: RankingResult) -> list[dict]:
                         "GewichtungsPanel",
                         {
                             "gewichte": [
-                                {"name": name, "anteil": round(anteil, 4)}
+                                {
+                                    "name": i18n.t(f"dim.{name}", lang),
+                                    "anteil": round(anteil, 4),
+                                }
                                 for name, anteil in sorted(
                                     result.gewichte.items(), key=lambda kv: -kv[1]
                                 )
@@ -196,6 +224,9 @@ def build_weight_update(result: RankingResult) -> list[dict]:
                             "hinweis": (
                                 "Die Voreinstellung ist ein Startpunkt, kein Urteil. "
                                 "Jede Dimension ist einstellbar."
+                                if lang == "de"
+                                else "The default is a starting position, not a verdict. "
+                                     "Every dimension is adjustable."
                             ),
                         },
                     )

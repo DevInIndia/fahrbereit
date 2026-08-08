@@ -17,6 +17,8 @@ from typing import Optional
 
 from pydantic import BaseModel
 
+from agent import i18n
+from agent.i18n import DEFAULT_LANG, Lang
 from agent.listing import Listing
 from agent.state import InterviewState
 
@@ -94,6 +96,15 @@ RESTWERT_RATE: dict[str, float] = {
 
 STANDARD_JAHRESFAHRLEISTUNG = 15_000
 
+SCHAETZUNG_HINWEIS_DE = (
+    "Versicherung, Wartung und Restwert sind Schätzungen nach Segmentmittelwerten, "
+    "keine Angebote. Die Kfz-Steuer ist nach Paragraph 9 KraftStG exakt berechnet."
+)
+SCHAETZUNG_HINWEIS_EN = (
+    "Insurance, maintenance and residual value are estimates from segment averages, "
+    "not quotations. The vehicle tax is computed exactly per section 9 KraftStG."
+)
+
 
 class CostOfOwnership(BaseModel):
     """Itemised, so the total can be checked rather than believed."""
@@ -110,18 +121,15 @@ class CostOfOwnership(BaseModel):
     gesamt_5j_eur: int
     jahresfahrleistung_km: int
     steuer_hinweis: str
-    schaetzung_hinweis: str = (
-        "Versicherung, Wartung und Restwert sind Schätzungen nach Segmentmittelwerten, "
-        "keine Angebote. Die Kfz-Steuer ist nach Paragraph 9 KraftStG exakt berechnet."
-    )
+    schaetzung_hinweis: str = SCHAETZUNG_HINWEIS_DE
 
-    def posten(self) -> list[tuple[str, int]]:
+    def posten(self, lang: Lang = DEFAULT_LANG) -> list[tuple[str, int]]:
         return [
-            ("Kfz-Steuer", self.kfz_steuer_5j_eur),
-            ("Versicherung", self.versicherung_5j_eur),
-            ("Energie", self.energie_5j_eur),
-            ("Wartung", self.wartung_5j_eur),
-            ("Wertverlust", self.wertverlust_eur),
+            (i18n.t("t.kfz_steuer", lang), self.kfz_steuer_5j_eur),
+            (i18n.t("t.versicherung", lang), self.versicherung_5j_eur),
+            (i18n.t("t.energie", lang), self.energie_5j_eur),
+            (i18n.t("t.wartung", lang), self.wartung_5j_eur),
+            (i18n.t("t.wertverlust", lang), self.wertverlust_eur),
         ]
 
 
@@ -145,7 +153,9 @@ def _co2_anteil(co2: int, freibetrag: int, gestaffelt: bool) -> float:
     return total
 
 
-def _elektro_steuer(listing: Listing, stichtag: date) -> tuple[int, str]:
+def _elektro_steuer(
+    listing: Listing, stichtag: date, lang: Lang = DEFAULT_LANG
+) -> tuple[int, str]:
     ez = date(listing.erstzulassung_jahr, listing.erstzulassung_monat, 1)
 
     if ez <= ELEKTRO_ZULASSUNG_STICHTAG:
@@ -153,9 +163,14 @@ def _elektro_steuer(listing: Listing, stichtag: date) -> tuple[int, str]:
             date(ez.year + ELEKTRO_BEFREIUNG_JAHRE, ez.month, 1), ELEKTRO_BEFREIUNG_ENDE
         )
         if stichtag <= ende:
+            if lang == "de":
+                return 0, (
+                    f"Reines Elektrofahrzeug, steuerbefreit bis "
+                    f"{ende.strftime('%m/%Y')} (Achtes Gesetz zur Änderung des KraftStG)."
+                )
             return 0, (
-                f"Reines Elektrofahrzeug, steuerbefreit bis {ende.strftime('%m/%Y')} "
-                f"(Achtes Gesetz zur Änderung des KraftStG)."
+                f"Battery electric vehicle, exempt from vehicle tax until "
+                f"{ende.strftime('%m/%Y')} (Eighth Act amending the KraftStG)."
             )
 
     # Exemption spent: mass based rate, then reduced by half.
@@ -169,18 +184,24 @@ def _elektro_steuer(listing: Listing, stichtag: date) -> tuple[int, str]:
         einheiten = -(-anteil_kg // 200)  # angefangene 200 kg
         betrag += einheiten * satz
         untergrenze = obergrenze
-    return int(round(betrag * 0.5)), (
+    hinweis = (
         "Reines Elektrofahrzeug nach Ablauf der Befreiung, Gewichtsbesteuerung "
         "mit 50 Prozent Ermäßigung."
+        if lang == "de"
+        else "Battery electric vehicle past its exemption, taxed on mass with a "
+             "50 percent reduction."
     )
+    return int(round(betrag * 0.5)), hinweis
 
 
-def kfz_steuer(listing: Listing, stichtag: Optional[date] = None) -> tuple[int, str]:
+def kfz_steuer(
+    listing: Listing, stichtag: Optional[date] = None, lang: Lang = DEFAULT_LANG
+) -> tuple[int, str]:
     """Annual German motor vehicle tax, in euro. Exact, not estimated."""
     stichtag = stichtag or date.today()
 
     if listing.kraftstoff == "Elektro":
-        return _elektro_steuer(listing, stichtag)
+        return _elektro_steuer(listing, stichtag, lang)
 
     einheiten = -(-listing.hubraum_ccm // 100)  # angefangene 100 ccm
     satz = HUBRAUM_SATZ.get(listing.kraftstoff, 2.00)
@@ -189,24 +210,36 @@ def kfz_steuer(listing: Listing, stichtag: Optional[date] = None) -> tuple[int, 
     jahr = listing.erstzulassung_jahr
     if jahr >= 2021:
         freibetrag, gestaffelt = 95, True
-        regel = "Staffelung ab EZ 2021"
+        regel = ("Staffelung ab EZ 2021" if lang == "de"
+                 else "banded rates, first registration from 2021")
     elif jahr >= 2014:
         freibetrag, gestaffelt = 95, False
-        regel = "Pauschal 2,00 EUR/g ab EZ 07/2014"
+        regel = ("Pauschal 2,00 EUR/g ab EZ 07/2014" if lang == "de"
+                 else "flat 2.00 EUR/g, first registration from 07/2014")
     elif jahr >= 2012:
         freibetrag, gestaffelt = 110, False
-        regel = "Freibetrag 110 g/km, EZ 2012 bis 2013"
+        regel = ("Freibetrag 110 g/km, EZ 2012 bis 2013" if lang == "de"
+                 else "110 g/km allowance, first registration 2012 to 2013")
     else:
         freibetrag, gestaffelt = 120, False
-        regel = "Freibetrag 120 g/km, EZ bis 2011"
+        regel = ("Freibetrag 120 g/km, EZ bis 2011" if lang == "de"
+                 else "120 g/km allowance, first registration up to 2011")
 
     co2_teil = _co2_anteil(listing.co2_g_km, freibetrag, gestaffelt)
     gesamt = int(round(hubraum_teil + co2_teil))
-    hinweis = (
-        f"{einheiten} x {satz:.2f} EUR je angefangene 100 ccm "
-        f"({listing.hubraum_ccm} ccm) plus CO2-Anteil auf "
-        f"{max(0, listing.co2_g_km - freibetrag)} g über {freibetrag} g/km. {regel}."
-    )
+    ueber = max(0, listing.co2_g_km - freibetrag)
+    if lang == "de":
+        hinweis = (
+            f"{einheiten} x {satz:.2f} EUR je angefangene 100 ccm "
+            f"({listing.hubraum_ccm} ccm) plus CO2-Anteil auf "
+            f"{ueber} g über {freibetrag} g/km. {regel}."
+        )
+    else:
+        hinweis = (
+            f"{einheiten} x {satz:.2f} EUR per 100 ccm begun "
+            f"({listing.hubraum_ccm} ccm) plus a CO2 charge on "
+            f"{ueber} g above the {freibetrag} g/km allowance. {regel}."
+        )
     return gesamt, hinweis
 
 
@@ -243,6 +276,7 @@ def cost_of_ownership(
     listing: Listing,
     jahresfahrleistung_km: int = STANDARD_JAHRESFAHRLEISTUNG,
     stichtag: Optional[date] = None,
+    lang: Lang = DEFAULT_LANG,
 ) -> CostOfOwnership:
     """Five year cost of ownership for one listing.
 
@@ -251,7 +285,7 @@ def cost_of_ownership(
     """
     km = max(jahresfahrleistung_km, 1_000)
 
-    steuer_jahr, steuer_hinweis = kfz_steuer(listing, stichtag)
+    steuer_jahr, steuer_hinweis = kfz_steuer(listing, stichtag, lang)
     versicherung_jahr = _versicherung_jahr(listing)
     energie_jahr = _energie_jahr(listing, km)
     wartung = _wartung_5j(listing, stichtag)
@@ -285,6 +319,9 @@ def cost_of_ownership(
         gesamt_5j_eur=gesamt,
         jahresfahrleistung_km=km,
         steuer_hinweis=steuer_hinweis,
+        schaetzung_hinweis=(
+            SCHAETZUNG_HINWEIS_DE if lang == "de" else SCHAETZUNG_HINWEIS_EN
+        ),
     )
 
 

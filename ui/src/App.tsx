@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { A2UIProvider, A2UIRenderer, useA2UI } from "@copilotkit/a2ui-renderer";
-import { fahrbereitCatalog } from "./a2ui/catalog";
+import { LangContext, fahrbereitCatalog } from "./a2ui/catalog";
 import { AppFrame } from "./AppFrame";
+import { LANGS, type Lang, t } from "./i18n";
 
 const DIMENSIONEN = [
   "preis_spielraum",
@@ -25,10 +26,12 @@ type Schritt = "katalog" | "formular" | "kasse";
 function Katalog({
   persona,
   gewichte,
+  lang,
   onInterview,
 }: {
   persona: string;
   gewichte: Record<string, number> | null;
+  lang: Lang;
   onInterview: (rows: SlotRow[]) => void;
 }) {
   const { processMessages, clearSurfaces } = useA2UI();
@@ -39,13 +42,13 @@ function Katalog({
     fetch("/api/surface/katalog", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ persona, gewichte, limit: 6 }),
+      body: JSON.stringify({ persona, gewichte, limit: 6, lang }),
     })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
       .then((data) => {
         if (cancelled) return;
         clearSurfaces();
-        // The agent side speaks A2UI. This is the whole integration.
+        // The server side speaks A2UI. This is the whole integration.
         processMessages(data.messages);
         onInterview(data.interview);
         setFehler(null);
@@ -54,42 +57,42 @@ function Katalog({
     return () => {
       cancelled = true;
     };
-  }, [persona, gewichte, processMessages, clearSurfaces, onInterview]);
+  }, [persona, gewichte, lang, processMessages, clearSurfaces, onInterview]);
 
-  if (fehler) return <p className="err">Backend nicht erreichbar: {fehler}</p>;
+  if (fehler) return <p className="err">{t("backendWeg", lang)}: {fehler}</p>;
   return (
     <A2UIRenderer
       surfaceId="fahrbereit-katalog"
-      fallback={<p className="dim">Oberfläche wird aufgebaut...</p>}
+      fallback={<p className="dim">{t("wirdAufgebaut", lang)}</p>}
     />
   );
 }
 
-function Fortschritt({ rows }: { rows: SlotRow[] }) {
+function Fortschritt({ rows, lang }: { rows: SlotRow[]; lang: Lang }) {
   if (!rows.length) return null;
   return (
     <section className="panel">
-      <div className="eyebrow">Interview</div>
+      <div className="eyebrow">{t("interview", lang)}</div>
       <table className="tbl">
         <tbody>
           {rows.map((r) => (
             <tr key={r.slot}>
               <td className={r.offen ? "dim" : ""}>{r.slot}</td>
-              <td className="small">{r.wert || <span className="dim">offen</span>}</td>
-              <td style={{ width: 96 }}>
+              <td className="small">
+                {r.wert || <span className="dim">{t("offen", lang)}</span>}
+              </td>
+              <td style={{ width: 104 }}>
                 {r.herkunft === "inferred" ? (
-                  <span className="tag inferred">abgeleitet</span>
+                  <span className="tag inferred">{t("abgeleitet", lang)}</span>
                 ) : r.herkunft === "stated" ? (
-                  <span className="tag stated">gesagt</span>
+                  <span className="tag stated">{t("gesagt", lang)}</span>
                 ) : null}
               </td>
             </tr>
           ))}
         </tbody>
       </table>
-      <p className="footnote">
-        Abgeleitete Werte sind markiert und vom Nutzer korrigierbar.
-      </p>
+      <p className="footnote">{t("interviewHinweis", lang)}</p>
     </section>
   );
 }
@@ -100,6 +103,17 @@ export default function App() {
   const [gewichte, setGewichte] = useState<Record<string, number> | null>(null);
   const [interview, setInterview] = useState<SlotRow[]>([]);
   const [protokoll, setProtokoll] = useState<string[]>([]);
+  const [lang, setLang] = useState<Lang>(() => {
+    const stored = localStorage.getItem("fahrbereit.lang");
+    return stored === "en" || stored === "de" ? stored : "de";
+  });
+
+  // German is the default because the product is German market facing. The choice
+  // persists so a reader who switches once does not have to switch again.
+  useEffect(() => {
+    localStorage.setItem("fahrbereit.lang", lang);
+    document.documentElement.lang = lang;
+  }, [lang]);
 
   const onInterview = useCallback((rows: SlotRow[]) => setInterview(rows), []);
   const onToolResult = useCallback((tool: string, result: string) => {
@@ -108,12 +122,28 @@ export default function App() {
 
   const istMiete = persona === "umzug";
   const intent = istMiete ? "miete" : "kauf";
+  const fahrzeug = encodeURIComponent(t("ausgewaehltesFahrzeug", lang));
 
   return (
+    <LangContext.Provider value={lang}>
     <A2UIProvider catalog={fahrbereitCatalog}>
       <div className="shell">
         <aside className="seite">
-          <div className="eyebrow">Persona</div>
+          <div className="eyebrow">{t("sprache", lang)}</div>
+          <div className="knopfreihe">
+            {LANGS.map((l) => (
+              <button
+                key={l}
+                className={l === lang ? "aktiv" : ""}
+                onClick={() => setLang(l)}
+                aria-pressed={l === lang}
+              >
+                {l === "de" ? "Deutsch" : "English"}
+              </button>
+            ))}
+          </div>
+
+          <div className="eyebrow" style={{ marginTop: 22 }}>{t("persona", lang)}</div>
           <div className="knopfreihe">
             {["familie", "pendler", "umzug"].map((p) => (
               <button
@@ -130,21 +160,18 @@ export default function App() {
             ))}
           </div>
 
-          <div className="eyebrow" style={{ marginTop: 22 }}>Gewichtung</div>
+          <div className="eyebrow" style={{ marginTop: 22 }}>{t("gewichtung", lang)}</div>
           <div className="knopfreihe spalte">
-            <button onClick={() => setGewichte(null)}>zurücksetzen</button>
+            <button onClick={() => setGewichte(null)}>{t("zuruecksetzen", lang)}</button>
             {DIMENSIONEN.map((d) => (
               <button key={d} onClick={() => setGewichte({ [d]: 1 })}>
-                nur {d}
+                {t("nur", lang)} {t(`dim.${d}`, lang)}
               </button>
             ))}
           </div>
-          <p className="footnote">
-            Die Gewichtung gehört dem Nutzer. Die Voreinstellung ist ein Startpunkt,
-            kein Urteil.
-          </p>
+          <p className="footnote">{t("gewichtungHinweis", lang)}</p>
 
-          <div className="eyebrow" style={{ marginTop: 22 }}>Ablauf</div>
+          <div className="eyebrow" style={{ marginTop: 22 }}>{t("ablauf", lang)}</div>
           <div className="knopfreihe spalte">
             {(["katalog", "formular", "kasse"] as Schritt[]).map((s) => (
               <button
@@ -152,16 +179,16 @@ export default function App() {
                 className={s === schritt ? "aktiv" : ""}
                 onClick={() => setSchritt(s)}
               >
-                {s}
+                {t(s, lang)}
               </button>
             ))}
           </div>
 
-          <Fortschritt rows={interview} />
+          <Fortschritt rows={interview} lang={lang} />
 
           {protokoll.length > 0 && (
             <section className="panel">
-              <div className="eyebrow">Bridge-Protokoll</div>
+              <div className="eyebrow">{t("bridgeLog", lang)}</div>
               <ul className="liste small">
                 {protokoll.map((p, i) => <li key={i}>{p}</li>)}
               </ul>
@@ -171,25 +198,32 @@ export default function App() {
 
         <main className="haupt">
           {schritt === "katalog" && (
-            <Katalog persona={persona} gewichte={gewichte} onInterview={onInterview} />
+            <Katalog
+              persona={persona}
+              gewichte={gewichte}
+              lang={lang}
+              onInterview={onInterview}
+            />
           )}
           {schritt === "formular" && (
             <AppFrame
-              title="Anfrageformular"
-              endpoint={`/api/app/formular?listing_id=FB-00001&intent=${intent}&fahrzeug=Ausgew%C3%A4hltes%20Fahrzeug`}
+              title={t("anfrageformular", lang)}
+              lang={lang}
+              endpoint={`/api/app/formular?listing_id=FB-00001&intent=${intent}&fahrzeug=${fahrzeug}&lang=${lang}`}
               onToolResult={onToolResult}
             />
           )}
           {schritt === "kasse" && (
             <AppFrame
-              title="Kasse, simuliert"
-              endpoint={`/api/app/kasse?listing_id=FB-00001&intent=${intent}&betrag_eur=${istMiete ? 147 : 21490}&fahrzeug=Ausgew%C3%A4hltes%20Fahrzeug`}
+              title={t("kasseSimuliert", lang)}
+              lang={lang}
+              endpoint={`/api/app/kasse?listing_id=FB-00001&intent=${intent}&betrag_eur=${istMiete ? 147 : 21490}&fahrzeug=${fahrzeug}&lang=${lang}`}
               onToolResult={onToolResult}
             />
           )}
         </main>
       </div>
     </A2UIProvider>
+    </LangContext.Provider>
   );
 }
-

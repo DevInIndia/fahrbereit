@@ -6,11 +6,21 @@
  * produced by the Python ranking engine and arrived over the wire.
  */
 
-import { useState } from "react";
+import { createContext, useContext, useState } from "react";
 import { createCatalog } from "@copilotkit/a2ui-renderer";
 import { fahrbereitDefinitions } from "./definitions";
+import { type Lang, t } from "../i18n";
 
-const de = (n: number) => n.toLocaleString("de-DE");
+/**
+ * The renderer's own furniture, table headings and section titles, follows the
+ * chosen language. The agent supplies the data and the explanations; the renderer
+ * supplies its own labels. Proper nouns in the data are never touched.
+ */
+export const LangContext = createContext<Lang>("de");
+const useLang = () => useContext(LangContext);
+
+const num = (n: number, lang: Lang) =>
+  n.toLocaleString(lang === "de" ? "de-DE" : "en-GB");
 
 function Bar({ value, max = 100 }: { value: number; max?: number }) {
   const pct = Math.max(0, Math.min(100, (value / max) * 100));
@@ -38,33 +48,38 @@ export const fahrbereitCatalog = createCatalog(
       </header>
     ),
 
-    FilterBericht: ({ props }) => (
+    FilterBericht: ({ props }) => {
+      const lang = useLang();
+      return (
       <section className="panel">
-        <div className="eyebrow">Harte Filter</div>
+        <div className="eyebrow">{t("harteFilter", lang)}</div>
         <table className="tbl">
           <tbody>
             <tr>
-              <td>Geprüfte Angebote</td>
-              <td className="num">{de(props.gesamt)}</td>
+              <td>{t("geprueft", lang)}</td>
+              <td className="num">{num(props.gesamt, lang)}</td>
             </tr>
             {props.ausgeschlossen.map((row) => (
               <tr key={row.grund}>
-                <td className="dim">ausgeschlossen: {row.grund}</td>
-                <td className="num dim">−{de(row.anzahl)}</td>
+                <td className="dim">{t("ausgeschlossenPrefix", lang)}: {row.grund}</td>
+                <td className="num dim">−{num(row.anzahl, lang)}</td>
               </tr>
             ))}
             <tr className="total">
-              <td>Verblieben</td>
-              <td className="num">{de(props.uebrig)}</td>
+              <td>{t("verblieben", lang)}</td>
+              <td className="num">{num(props.uebrig, lang)}</td>
             </tr>
           </tbody>
         </table>
       </section>
-    ),
+      );
+    },
 
-    GewichtungsPanel: ({ props }) => (
+    GewichtungsPanel: ({ props }) => {
+      const lang = useLang();
+      return (
       <section className="panel">
-        <div className="eyebrow">Gewichtung aus dem Interview</div>
+        <div className="eyebrow">{t("gewichtungInterview", lang)}</div>
         <table className="tbl">
           <tbody>
             {props.gewichte.map((g) => (
@@ -80,9 +95,11 @@ export const fahrbereitCatalog = createCatalog(
         </table>
         {props.hinweis ? <p className="footnote">{props.hinweis}</p> : null}
       </section>
-    ),
+      );
+    },
 
     FahrzeugKarte: ({ props }) => {
+      const lang = useLang();
       const [open, setOpen] = useState(props.rang === 1);
       return (
         <article className="karte">
@@ -98,22 +115,22 @@ export const fahrbereitCatalog = createCatalog(
               <div className="punkte num">{props.punkte.toFixed(1)}</div>
               <Bar value={props.punkte} />
             </div>
-            <button className="chev" aria-label="Begründung anzeigen">
+            <button className="chev" aria-label={t("begruendungZeigen", lang)}>
               {open ? "−" : "+"}
             </button>
           </div>
 
           {open && (
             <div className="karte-detail">
-              <div className="eyebrow">Warum dieses Auto</div>
+              <div className="eyebrow">{t("warumDiesesAuto", lang)}</div>
               <table className="tbl">
                 <thead>
                   <tr>
-                    <th>Dimension</th>
-                    <th className="num">Gewicht</th>
-                    <th className="num">Rang</th>
-                    <th className="num">Beitrag</th>
-                    <th>Begründung</th>
+                    <th>{t("thDimension", lang)}</th>
+                    <th className="num">{t("thGewicht", lang)}</th>
+                    <th className="num">{t("thRang", lang)}</th>
+                    <th className="num">{t("thBeitrag", lang)}</th>
+                    <th>{t("thBegruendung", lang)}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -126,13 +143,13 @@ export const fahrbereitCatalog = createCatalog(
                       <td className="dim small">
                         {d.begruendung}
                         {d.begrenztDurch ? (
-                          <span className="limit"> begrenzt durch {d.begrenztDurch}</span>
+                          <span className="limit"> {t("begrenztDurch", lang)} {d.begrenztDurch}</span>
                         ) : null}
                       </td>
                     </tr>
                   ))}
                   <tr className="total">
-                    <td>Gesamt</td>
+                    <td>{t("thGesamt", lang)}</td>
                     <td /><td />
                     <td className="num">{props.punkte.toFixed(2)}</td>
                     <td />
@@ -144,7 +161,7 @@ export const fahrbereitCatalog = createCatalog(
 
               {props.dimensionen.some((d) => d.begrenztDurch) && (
                 <>
-                  <div className="eyebrow">Zusammengesetzte Dimensionen</div>
+                  <div className="eyebrow">{t("zusammengesetzt", lang)}</div>
                   {props.dimensionen
                     .filter((d) => d.begrenztDurch)
                     .map((d) => (
@@ -160,7 +177,7 @@ export const fahrbereitCatalog = createCatalog(
                                 <td className="dim small">
                                   {c.detail}
                                   {c.name === d.begrenztDurch ? (
-                                    <span className="limit"> begrenzend</span>
+                                    <span className="limit"> {t("begrenzend", lang)}</span>
                                   ) : null}
                                 </td>
                               </tr>
@@ -171,14 +188,14 @@ export const fahrbereitCatalog = createCatalog(
                 </>
               )}
 
-              <div className="eyebrow">Ausschlaggebend</div>
+              <div className="eyebrow">{t("ausschlaggebend", lang)}</div>
               <ul className="liste">
                 {props.topFaktoren.map((f) => <li key={f}>{f}</li>)}
               </ul>
 
               {props.schwachstellen.length > 0 && (
                 <>
-                  <div className="eyebrow">Schwächen</div>
+                  <div className="eyebrow">{t("schwaechen", lang)}</div>
                   <ul className="liste schwach">
                     {props.schwachstellen.map((f) => <li key={f}>{f}</li>)}
                   </ul>
@@ -187,13 +204,13 @@ export const fahrbereitCatalog = createCatalog(
 
               {props.tcoGesamt > 0 && (
                 <p className="tco">
-                  {props.istMiete ? "Kosten" : "Gesamtkosten über fünf Jahre"}:{" "}
-                  <strong className="num">{de(props.tcoGesamt)} EUR</strong>
+                  {props.istMiete ? t("kosten", lang) : t("gesamtkosten5j", lang)}:{" "}
+                  <strong className="num">{num(props.tcoGesamt, lang)} EUR</strong>
                 </p>
               )}
 
               {props.vergleich ? (
-                <p className="footnote">Gegen Platz 2: {props.vergleich}</p>
+                <p className="footnote">{t("gegenPlatz2", lang)}: {props.vergleich}</p>
               ) : null}
             </div>
           )}

@@ -12,6 +12,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
+import { type Lang, t } from "./i18n";
 
 const BRIDGE_SHIM = `
 <script>
@@ -46,10 +47,11 @@ const BRIDGE_SHIM = `
 type Props = {
   endpoint: string;
   title: string;
+  lang: Lang;
   onToolResult?: (tool: string, result: string) => void;
 };
 
-export function AppFrame({ endpoint, title, onToolResult }: Props) {
+export function AppFrame({ endpoint, title, lang, onToolResult }: Props) {
   const [html, setHtml] = useState<string | null>(null);
   const [meta, setMeta] = useState<{ resourceUri: string; mimeType: string } | null>(null);
   const [height, setHeight] = useState(420);
@@ -108,8 +110,10 @@ export function AppFrame({ endpoint, title, onToolResult }: Props) {
         MCP App · {title}
         {meta ? <span className="dim"> · {meta.resourceUri}</span> : null}
       </div>
-      {error ? <p className="err">Konnte die Oberfläche nicht laden: {error}</p> : null}
-      {html === null && !error ? <p className="dim">Wird geladen...</p> : null}
+      {error ? (
+        <p className="err">{t("ladenFehlgeschlagen", lang)}: {error}</p>
+      ) : null}
+      {html === null && !error ? <p className="dim">{t("wirdGeladen", lang)}</p> : null}
       {html !== null && (
         <iframe
           ref={frameRef}
