@@ -175,18 +175,23 @@ Why `fetchUITools` produced nothing. Candidates, untested:
 Distinguishing these needs instrumentation inside the middleware call path. That is
 perhaps thirty minutes of work and it was not done inside the timebox.
 
-### Path selection
+### Path selection: we host the bridge ourselves
 
-**Not yet selected, and this is the decision to be taken before any surface is built.**
+**Decided 2026-08-08. The middleware failure is left UNRESOLVED, deliberately.**
 
-The fallback identified in research.md remains open and is now more attractive than it
-was: host the app bridge directly in React using `@modelcontextprotocol/ext-apps`, hold our
+We host the app bridge directly in React using `@modelcontextprotocol/ext-apps`, hold our
 own MCP client to the `formular` and `kasse` servers, fetch the `ui://` resource and render
-the iframe ourselves. Everything that fallback depends on is proven above. It costs more
-frontend code and no protocol compromise.
+the sandboxed iframe ourselves. Every dependency that path needs is proven by a run above.
 
-The remaining unknown is only whether the middleware can be made to work, which would save
-that code. It is worth a bounded further attempt, not an open ended one.
+The reasoning for not spending another thirty minutes on the middleware: `@ag-ui/mcp-apps-middleware`
+is at 0.0.3, the failure is in its own discovery step rather than in anything we control,
+and three mandatory requirements were at zero when the decision was taken. Debugging a
+young package to save frontend code is the wrong trade against that clock.
+
+This is recorded rather than deleted because it is an honest finding about a young package
+and someone else may hit it. It is not a claim that the middleware is broken; it is a claim
+that we could not make it inject tools inside a timebox, and that we did not establish why.
+One line goes in the README's known limitations noting that we host the bridge directly.
 
 ---
 
