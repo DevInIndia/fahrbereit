@@ -16,6 +16,7 @@ const DIMENSIONEN = [
 
 type SlotRow = {
   slot: string;
+  label?: string;
   wert: string;
   herkunft: string | null;
   bestaetigt: boolean;
@@ -57,7 +58,7 @@ function Fortschritt({ rows, lang }: { rows: SlotRow[]; lang: Lang }) {
         <tbody>
           {rows.map((r) => (
             <tr key={r.slot}>
-              <td className={r.offen ? "dim" : ""}>{r.slot}</td>
+              <td className={r.offen ? "dim" : ""}>{r.label ?? r.slot}</td>
               <td className="small">
                 {r.wert || <span className="dim">{t("offen", lang)}</span>}
               </td>
@@ -218,7 +219,7 @@ export default function App() {
                   persona(p, null);
                 }}
               >
-                {p}
+                {t(`persona.${p}`, lang)}
               </button>
             ))}
           </div>

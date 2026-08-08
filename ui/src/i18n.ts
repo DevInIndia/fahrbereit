@@ -112,6 +112,11 @@ const STRINGS: Record<string, Record<Lang, string>> = {
     de: "Die Personen umgehen das Modell. Sie funktionieren auch, wenn das Kontingent erschöpft ist.",
     en: "The personas bypass the model. They keep working when the quota is exhausted.",
   },
+
+  // Persona shortcuts. The keys are identifiers; these are what a user reads.
+  "persona.familie": { de: "Familie", en: "Family" },
+  "persona.pendler": { de: "Pendler", en: "Commuter" },
+  "persona.umzug": { de: "Umzug", en: "Moving house" },
 };
 
 export function t(key: string, lang: Lang): string {

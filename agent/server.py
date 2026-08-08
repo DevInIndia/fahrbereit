@@ -199,25 +199,65 @@ def gewichte(req: WeightRequest) -> dict[str, Any]:
 def _interview_payload(
     state: InterviewState, lang: str = "de"
 ) -> list[dict[str, Any]]:
-    """The slot checklist, with inferred values marked. Feeds the progress panel."""
+    """The slot checklist, with inferred values marked. Feeds the progress panel.
+
+    Slot names and their values are internal identifiers, so they are translated here
+    rather than shipped raw. A user should never be shown `jahresfahrleistung_km` or
+    `min_sitzplaetze` in either language.
+    """
+    norm = i18n.normalise(lang)
+
+    def wert_text(name: str, value: Any) -> str:
+        if value is None:
+            return ""
+        if name == "intent":
+            return i18n.t(f"intent.{getattr(value, 'value', value)}", norm)
+        if name == "use_case_tags":
+            return ", ".join(
+                i18n.t(f"tag.{getattr(v, 'value', v)}", norm) for v in value
+            )
+        if isinstance(value, list):
+            return ", ".join(str(getattr(v, "value", v)) for v in value)
+        if hasattr(value, "model_dump"):
+            teile = []
+            for key, inner in value.model_dump().items():
+                if inner in (None, False):
+                    continue
+                label = i18n.t(f"f.{key}", norm)
+                if inner is True:
+                    teile.append(label)
+                elif key == "umweltplakette":
+                    teile.append(f"{label}: {i18n.plakette(str(inner), norm)}")
+                elif isinstance(inner, int) and key.endswith("_eur"):
+                    teile.append(f"{label}: {i18n.fmt_int(inner, norm)} EUR")
+                elif isinstance(inner, int) and key.endswith("_liter"):
+                    teile.append(f"{label}: {i18n.fmt_int(inner, norm)} l")
+                elif isinstance(inner, int) and key.endswith("_km"):
+                    teile.append(f"{label}: {i18n.fmt_int(inner, norm)} km")
+                elif isinstance(inner, list):
+                    teile.append(
+                        f"{label}: "
+                        + ", ".join(i18n.kraftstoff(str(x), norm) for x in inner)
+                        if key == "kraftstoff"
+                        else f"{label}: {', '.join(str(x) for x in inner)}"
+                    )
+                else:
+                    teile.append(f"{label}: {inner}")
+            return ", ".join(teile)
+        if name == "jahresfahrleistung_km":
+            return f"{i18n.fmt_int(value, norm)} km"
+        if isinstance(value, int):
+            return i18n.fmt_int(value, norm)
+        return str(getattr(value, "value", value))
+
     rows = []
     for name in state.slot_names():
         slot = state.slot(name)
-        value = slot.value
-        if isinstance(value, list):
-            text = ", ".join(str(getattr(v, "value", v)) for v in value)
-        elif hasattr(value, "model_dump"):
-            text = ", ".join(
-                f"{k}: {v}" for k, v in value.model_dump().items() if v not in (None, False)
-            )
-        elif hasattr(value, "value"):
-            text = str(value.value)
-        else:
-            text = "" if value is None else str(value)
         rows.append(
             {
                 "slot": name,
-                "wert": text,
+                "label": i18n.t(f"slot.{name}", norm),
+                "wert": wert_text(name, slot.value),
                 "herkunft": slot.provenance.value if slot.provenance else None,
                 "bestaetigt": slot.confirmed,
                 "offen": not slot.is_set,
