@@ -235,10 +235,56 @@ its configuration reference and both affect us:
 Public deployment is optional under the brief. It is not scheduled ahead of any mandatory
 item, and these constraints are the reason it is not treated as free work.
 
-## Open question: Gemini free tier rate limits
+## Resolved 2026-08-08: Gemini free tier rate limits, verified
 
-**This is unresolved, and the numbers below are not yet trustworthy.** Recording it
-honestly rather than filling the table with plausible figures.
+**Source**: the Google AI Studio rate limit dashboard, `https://aistudio.google.com/rate-limit`,
+read against this project's own key on 2026-08-08. These are project specific and
+authenticated; they are not published in Google's public documentation. Re-check before
+relying on them at a later date.
+
+| Model | RPM | TPM | RPD |
+|---|---:|---:|---:|
+| Gemini 2.5 Flash | 5 | 250,000 | 20 |
+| Gemini 3 Flash | 5 | 250,000 | 20 |
+| Gemini 3.5 Flash | 5 | 250,000 | 20 |
+| Gemini 3.6 Flash | 5 | 250,000 | 20 |
+| Gemini 2.5 Flash Lite | 10 | 250,000 | 20 |
+| **Gemini 3.1 Flash Lite** | **15** | **250,000** | **500** |
+| **Gemini 3.5 Flash Lite** | **15** | **250,000** | **500** |
+| Gemma 4 31B | 30 | 16,000 | 14,400 |
+| Gemma 4 26B | 30 | 16,000 | 14,400 |
+| Gemini 2.5 Pro | 0 | 0 | not available |
+| Gemini 3.1 Pro | 0 | 0 | not available |
+
+**The full Flash models are unusable.** Twenty requests per day is roughly three user
+turns at this system's call volume. Nothing on the primary path may depend on them, and
+the Pro models are not on the free tier at all.
+
+**Decision**: the primary reasoning model is `gemini-3.5-flash-lite`, at 15 RPM and 500
+RPD. `gemini-3.1-flash-lite` carries identical limits and serves as the alternate, which
+also means the two together provide a thousand requests per day if the load is split.
+
+### Verified model identifiers
+
+Resolved by listing models against our key rather than by guessing. Fifty eight models
+were returned; these are the relevant ones, and note that the Gemma identifiers carry an
+`-it` suffix that the dashboard names omit.
+
+| Role | Identifier |
+|---|---|
+| Primary reasoning | `gemini-3.5-flash-lite` |
+| Alternate reasoning | `gemini-3.1-flash-lite` |
+| Bulk and offline | `gemma-4-31b-it` |
+| Bulk alternate | `gemma-4-26b-a4b-it` |
+
+Gemma models advertise only `generateContent` and `countTokens`. They do not support
+`createCachedContent`, so no prompt caching is available on the bulk path.
+
+## Superseded open question: Gemini free tier rate limits
+
+**Resolved on 2026-08-08 by the verified table above.** Retained because it records why
+the figures could not be sourced from documentation, which is the reason they must be
+re-read from the dashboard rather than looked up.
 
 **What was checked.** Google's official rate limit page,
 `https://ai.google.dev/gemini-api/docs/rate-limits`, and its raw markdown twin at
