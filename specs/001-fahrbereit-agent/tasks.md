@@ -1,272 +1,161 @@
 ---
 
-description: "Task breakdown for fahrbereit, organised as walking skeleton milestones"
+description: "Task breakdown for fahrbereit, reconciled against what was actually built"
 ---
 
 # Tasks: fahrbereit, a conversational car buying and rental advisor
 
 **Input**: Design documents from `/specs/001-fahrbereit-agent/`
 
-**Prerequisites**: plan.md, spec.md, research.md, data-model.md
+**Reconciled**: 2026-08-08, against the tree at commit `f741903`. Ticks below mean the
+work exists, runs, and is covered by a test or was verified by running it. Where a task
+was cut or changed, it says so and why, rather than being deleted.
 
-**Organisation**: milestones, not layers. Milestone 1 is a complete but shallow journey
-from first message to simulated checkout. Later milestones replace shallow pieces with
-real ones, one at a time, and the system stays runnable after every change.
-
-**Standing rule**: the tree must never be left in a state where `docker compose up`
-fails.
-
-## Format: `[ID] [P?] [Story] Description`
-
-- **[P]**: can run in parallel, touches different files with no dependency
-- **[Story]**: the user story from spec.md this task serves
+**Handover for a fresh session**: `docs/state.md`.
 
 ---
 
-## Phase 0: De-risking (gates M-1, M-2, M-3, M-4)
+## Phase 0: De-risking
 
-**Blocked**: requires a Google AI Studio API key in the build environment.
-
-- [ ] T000 Spike 0. Verify the model path before anything is built on it: one minimal
-  call through `ChatGoogleGenerativeAI`, then one multi tool calling exchange, then one
-  `create_deep_agent` run that calls a trivial tool and returns. Record observed latency
-  and any throttling. This gates T001 and T002, which both need a working agent.
-- [ ] T001 Spike A. Does the MCP Apps middleware render an app surface in chat behind an
-  external Python AG-UI endpoint? One MCP server, one tool carrying
-  `_meta.ui.resourceUri`, one single file hello world surface, one DeepAgents session
-  behind `add_langgraph_fastapi_endpoint`, one Node process running the middleware, one
-  React page. Success requires both a render and a button click round trip. Scratch tree
-  only.
-- [ ] T002 Spike B. Render a car card with image, specification table and action from an
-  agent emitted message, using `ag_ui_langgraph.get_a2ui_tools` against a catalog built
-  with `createCatalog`, and confirm the surface update, component update, data model
-  update and begin rendering flow. Scratch tree only.
-- [ ] T003 Record all outcomes in `docs/spike-notes.md` with exact error text on any
-  failure, state which architecture path is selected, then discard the spike code.
-
-**Spike A path**: under this stack the Node process hosting the middleware in front of the
-Python endpoint is the documented topology, not a fallback. The remaining fallback is
-hosting the app bridge directly in React and rendering the iframe ourselves. The path is
-reported before anything is built on it.
+- [x] T000 Spike 0, the model path. **Pass.** Tool calling reliable on both Lite
+  variants. Found that Gemma is sixteen times slower and cannot disable its thinking
+  blocks, which moved it off every interactive path.
+- [x] T001 Spike A, MCP Apps behind an external Python endpoint. **Partial, unresolved.**
+  The protocol layer is proven end to end; `@ag-ui/mcp-apps-middleware` 0.0.3 injected
+  zero tools and the cause was never established. Recorded honestly rather than deleted.
+- [~] T002 Spike B, A2UI from an agent emitted message. **Folded into the real build.**
+  Proving it twice was not worth a separate run; it is proven by the catalogue surface.
+- [x] T003 Outcomes recorded in `docs/spike-notes.md`, with exact error text. Path 2
+  selected: we host the app bridge ourselves.
 
 ---
 
-## Milestone 1: Walking skeleton (target hour 12)
+## Milestone 1: Walking skeleton
 
-**Definition of done**: a user completes the entire journey, interview to simulated
-checkout, from a clean clone via `docker compose up`. Shallow and plain by design.
-
-### Setup
-
-- [x] T004 Scaffold the spec-kit workflow and add `.gitignore`.
-- [ ] T005 Create the source tree from plan.md.
-- [ ] T006 [P] Add `pyproject.toml` pinning the Python dependencies from plan.md,
-  including `fastapi` and `uvicorn`, which `ag-ui-langgraph` needs but does not declare.
-- [ ] T007 [P] Add `.env.example` with placeholder values for `MODEL_PROVIDER`,
-  `GOOGLE_API_KEY`, `PAYMENT_PROVIDER` and the Langfuse variables. No Anthropic key is
-  required by this project.
-- [ ] T007a Implement the model provider seam in `agent/model/`: `factory.py` reading
-  `MODEL_PROVIDER` and returning a `BaseChatModel`, `gemini.py`, and
-  `openai_compatible.py` covering Cerebras and Groq through a `base_url` override.
-  Nothing outside this package imports a vendor.
-- [ ] T007b [P] Test the seam in `tests/test_model_factory.py`: the factory returns the
-  right class per configuration value, raises legibly on an unknown value, and no module
-  outside `agent/model/` imports a vendor package. The last assertion is a grep over the
-  tree and is what actually keeps the seam honest.
-
-### Shallow data
-
-- [ ] T008 Hand write twenty listings in `data/listings.json` against the final schema
-  from data-model.md, covering both purchase and rental. No generator yet.
-- [ ] T009 Implement listing loading and search in `agent/tools/search.py`.
-
-### Shallow core (M-7 in memory)
-
-- [ ] T010 Implement the typed state in `agent/state.py` with three slots only: intent,
-  budget, category. Provenance wrapper included from the start so it does not need
-  retrofitting.
-- [ ] T011 Implement session state in memory keyed by session id in `agent/store.py`,
-  behind an interface that a persistent implementation can satisfy later.
-- [ ] T012 Implement hard filter only in `agent/tools/ranking.py`, ordered by price.
-
-### Shallow agent (M-1)
-
-- [ ] T013 Write a minimal system prompt and interview policy in `agent/prompts/`.
-- [ ] T014 Orchestrate the session in `agent/session.py` with `create_deep_agent`, passing
-  the model from the factory, the tools, and a LangGraph checkpointer.
-- [ ] T015 Expose the agent over AG-UI in `agent/server.py` using
-  `add_langgraph_fastapi_endpoint`.
-- [ ] T015a Handle provider rate limiting as a visible state rather than a failure, per
-  FR-044.
-
-### Shallow interface (M-4, one surface)
-
-- [ ] T016 Scaffold the React client in `ui/` with the transport client and a session id.
-- [ ] T017 Define a minimal component catalog in `ui/src/a2ui/` and a plain car card list
-  surface, emitted from the agent side via `ag_ui_langgraph.get_a2ui_tools`.
-- [ ] T017a Stand up the Node process running `MCPAppsMiddleware` in front of the Python
-  AG-UI endpoint, as a compose service. This is the documented topology, so it is part of
-  the architecture rather than a contingency.
-
-### Shallow MCP Apps (M-2, M-3)
-
-- [ ] T018 Build `mcp/formular/` with a tool carrying `_meta.ui.resourceUri` and a three
-  field surface, no validation, bundled to a single HTML file.
-- [ ] T019 Build `mcp/kasse/` with a surface showing a total and a persistent SIMULATION
-  banner, no tax breakdown yet.
-- [ ] T020 Define the `PaymentProvider` interface and `MockPaymentProvider` in
-  `agent/payment/`, resolved through a factory keyed by `PAYMENT_PROVIDER`. See Milestone
-  1 payment note below.
-- [ ] T021 Attach the MCP Apps middleware and confirm both surfaces render in chat.
-
-### Containers (M-9), not deferred
-
-- [ ] T022 Write the `Dockerfile` set and `docker-compose.yml` for agent, MCP servers and
-  client.
-- [ ] T023 Verify `docker compose up` from a clean clone with only an API key present.
-  **Milestone 1 does not complete until this passes.**
-
-### Documentation (M-10)
-
-- [ ] T024 First `README.md` pass covering sections 1, 3, 4, 7, 9 and 10.
-
-**Payment note for T020**: the provider seam is built at Milestone 1 rather than
-retrofitted at Milestone 3, because the interface shape determines what the checkout
-surface and the agent may know about payment. Retrofitting it later would mean touching
-the surface, the agent and the tests at once.
+- [x] T004 Spec-kit workflow scaffolded, `.gitignore` added.
+- [x] T005 Source tree created.
+- [x] T006 `pyproject.toml`. Later fixed: it had no `[build-system]` and pinned
+  `langchain-core` exactly, so `pip install -e .` was impossible.
+- [x] T007 `.env.example` with placeholder values only.
+- [x] T007a Model provider seam in `agent/model/`, factory reading `MODEL_PROVIDER`.
+- [x] T007b Seam enforced by a test that walks the tree for vendor imports.
+- [x] T008 Hand written listings, since replaced by the generator.
+- [x] T009 Listing loading in `agent/listing.py`.
+- [x] T010 Typed state with provenance in `agent/state.py`, full slot set from the start.
+- [x] T011 Session store in `agent/store.py`, in memory behind a swappable interface.
+- [x] T012 Hard filter in `agent/tools/ranking.py`.
+- [x] T013 System prompt and interview policy in `agent/prompts/system.py`.
+- [x] T014 Session orchestration in `agent/session.py`, `checkpointer=InMemorySaver()`
+  wired at construction.
+- [x] T015 HTTP surface in `agent/server.py`.
+- [x] T015a Rate limiting surfaced as a visible state, FR-044.
+- [x] T016 React client in `ui/`.
+- [x] T017 A2UI component catalog and the catalogue surface.
+- [~] T017a Node process running `MCPAppsMiddleware`. **Cut.** Superseded by the Path 2
+  decision; the bridge is hosted in React and the backend holds its own MCP client.
+- [x] T018 `mcpapps/formular/`, MCP App with `_meta.ui.resourceUri`.
+- [x] T019 `mcpapps/kasse/`, MCP App with the SIMULATION banner.
+- [x] T020 `PaymentProvider` interface and `MockPaymentProvider`, resolved by factory.
+- [x] T021 Both surfaces render in chat, verified in a browser.
+- [x] T022 `Dockerfile` and `docker-compose.yml`, four services.
+- [x] T023 `docker compose up` verified from a clean clone in a temp directory.
+- [x] T024 First README pass.
 
 ---
 
-## Milestone 2: Substance (target hour 26)
+## Milestone 2: Substance
 
-Each task replaces one shallow piece with the real one, keeping the system working.
-
-### Real marketplace (M-6)
-
-- [ ] T025 Write the German vocabulary tables in `data/vocab.py`: ten categories, at least
-  ten brands with model lines and trims per category, invented dealer and operator name
-  parts, postal codes with places.
-- [ ] T026 Implement the seeded generator in `data/generate.py` producing correlated
-  purchase listings.
-- [ ] T027 Extend the generator with rental listings carrying ACRISS codes, rates, minimum
-  period, included and excess kilometres, deposit, minimum age and availability window.
-- [ ] T028 Regenerate and commit `data/listings.json` with at least two hundred and fifty
-  listings, exactly ten categories, at least ten brands in each.
-- [ ] T029 [P] Write invariant tests in `tests/test_dataset.py`. Includes a coherence test
-  that fails when an older, higher mileage car in the same category and trim is priced
-  above a newer, lower mileage one. Also scale floors, both listing types per category,
-  badge follows emissions class, no reserved real world operator name, and byte for byte
-  regeneration from the seed.
-
-### Real interview (US1)
-
-- [ ] T030 Extend `agent/state.py` to the full slot set from data-model.md.
-- [ ] T031 Implement inference with explicit confirmation, the at most two questions rule,
-  and the never re-ask rule in `agent/prompts/`.
-- [ ] T032 [P] Test slot extraction and the no re-ask rule in `tests/test_interview.py`.
-
-### Real ranking (US2)
-
-- [ ] T033 Add per constraint drop count attribution to the hard filter in a fixed order.
-- [ ] T034 Implement weighted soft scoring over the six dimensions with weights derived
-  from interview state.
-- [ ] T035 Expose weights to the user and re-rank in place on adjustment.
-- [ ] T036 [P] Test ranking in `tests/test_ranking.py`: determinism, zero hard constraint
-  violations, contributions summing to the total, drop counts summing to the excluded
-  count, and the empty result path.
-
-### Real state (M-7)
-
-- [ ] T037 Replace the in memory store with SQLite persistence in `agent/store.py`, and
-  attach a persistent LangGraph checkpointer for conversation continuity. These are two
-  separate concerns sharing one database, per plan.md.
-- [ ] T038 Verify state survives a page refresh and a backend restart.
-- [ ] T039 Implement the invalidation map from data-model.md, so a budget change discards
-  the ranking and keeps the interview.
-- [ ] T040 [P] Test invalidation in `tests/test_state.py`.
-
-### Second dynamic surface (M-4)
-
-- [ ] T041 Build the live progress surface: slot checklist with inferred values visually
-  distinct from stated ones, current phase, search status with filter counts, streaming
-  tool calls.
-- [ ] T042 Verify both surfaces update incrementally rather than by replacement.
-
-- [ ] T043 README pass two.
+- [x] T025 German vocabulary tables in `data/vocab.py`.
+- [x] T026 Seeded generator in `data/generate.py`.
+- [x] T027 Rental listings with ACRISS codes, rates, deposit, availability.
+- [x] T028 280 listings committed, ten categories, at least ten brands in each.
+- [x] T029 Invariant tests including the price coherence guarantee.
+- [x] T030 Full slot set.
+- [x] T031 Inference with explicit confirmation, at most two questions, never re-ask.
+- [x] T032 Interview behaviour tests in `tests/test_agent_loop.py`.
+- [x] T033 Per constraint drop counts in a fixed order.
+- [x] T034 Weighted soft scoring over six dimensions.
+- [x] T035 Weights exposed and adjustable, re-ranking in place.
+- [x] T036 Ranking tests: determinism, zero constraint violations, arithmetic identities.
+- [ ] T037 **Not done.** SQLite persistence. Still in memory. M-7 as stated requires a
+  page reload, which is met; a process restart is not. The interface is ready for the swap.
+- [x] T038 State survives a page reload.
+- [x] T039 Invalidation map implemented.
+- [x] T040 Invalidation tested: a budget change discards the ranking and keeps the
+  interview; a weight change never re-runs the filter.
+- [x] T041 Live progress surface in `agent/surfaces/fortschritt.py`, streamed over SSE.
+- [x] T042 Incremental updates verified: each event carries only the changed component.
+- [x] T043 README pass two.
 
 ---
 
-## Milestone 3: Depth (target hour 36)
+## Milestone 3: Depth
 
-- [ ] T044 **Before writing any TCO code**: add to `research.md` the exact Kfz-Steuer
-  formula to be implemented, with its source, stating the per 100 cubic centimetre rate
-  for petrol and for diesel, the carbon dioxide allowance and the per gram rates by band,
-  the registration era boundaries that select between flat and banded rates, and the
-  electric vehicle exemption cutoff being assumed. The assumption is stated on the page,
-  not buried in a function.
-- [ ] T045 Implement German cost of ownership in `agent/tools/tco.py`: motor vehicle tax,
-  insurance band, energy cost at the user's annual mileage, maintenance by segment and
-  age, five year residual value.
-- [ ] T046 [P] Test in `tests/test_tco.py`: the tax formula against hand computed cases
-  per fuel type and registration era, and the identity that itemised terms sum to the
-  total.
-- [ ] T047 Build the "Warum dieses Auto" panel from score data only: per dimension bars,
-  dominant factors, quantified runner up comparison.
-- [ ] T048 Extend `kasse` to a full invoice: net, nineteen percent value added tax and
-  gross as separate lines.
-- [ ] T049 Add purchase and rental contract references, the mock payment reference and the
-  obviously invalid bank identifier, each carrying the SIMULATION token, plus the
-  confirmation watermark.
-- [ ] T050 [P] Test the checkout surface in `tests/test_kasse.py`: indicators present, tax
-  line separated, and no card input present anywhere in any state.
-- [ ] T051 Design pass across all surfaces: tabular figures, strict grid, hairline rules,
-  restrained instrument panel aesthetic.
-- [ ] T052 Build `mcp/markt/` exposing `search_listings`, `get_listing` and
-  `check_availability` over MCP. **First item in the cut order.**
-- [ ] T053 README pass three, including the worked ranking example with real numbers.
+- [x] T044 Kfz-Steuer formula written into `specs/001-fahrbereit-agent/research.md` with its source before any code,
+  including the extended electric exemption to 31.12.2030. The widely quoted 2025 date is
+  stale.
+- [x] T045 German five year cost of ownership in `agent/tools/tco.py`.
+- [x] T046 Tax tested against hand computed cases per fuel type and registration era.
+- [x] T047 "Warum dieses Auto" panel, built from score data only.
+- [x] T048 Full invoice: net, nineteen percent tax, gross as separate lines.
+- [x] T049 Contract and payment references, invalid IBAN, watermark, all carrying the
+  SIMULATION token.
+- [x] T050 Checkout tested: indicators present, tax separated, no card input anywhere in
+  the repository in any state.
+- [x] T051 Design pass: tabular figures, strict grid, hairline rules.
+- [~] T052 `markt` MCP server. **Cut, as planned.** First in the cut order. The brief
+  explicitly permits calling marketplace data directly, which is what the agent does.
+- [ ] T053 README pass three with the worked ranking example. **Outstanding.**
 
 ---
 
-## Milestone 4: Bonus (target hour 41, cut first if behind)
+## Milestone 4: Bonus
 
-- [ ] T054 Wire OpenTelemetry and Langfuse in `agent/observability.py` using
-  `openinference-instrumentation-langchain`, instrumented at startup, with ranking tool
-  inputs and outputs attached to spans. Requires Langfuse keys, which must be requested.
-- [ ] T055 Write eight personas in `evals/personas.json`, each with a hidden ground truth
-  need.
-- [ ] T056 Build the harness in `evals/run_evals.py` scoring slot filling completeness,
-  hard constraint violations deterministically, rationale faithfulness by model judgement,
-  and turns to complete state.
-- [ ] T057 Expand to twenty personas only if time allows.
-- [ ] T058 Run the suite and commit results to `evals/results/`.
+- [x] T054 Langfuse over OpenTelemetry in `agent/observability.py`. Verified by reading a
+  trace back from the API: 20 observations per turn. `fahrbereit.ranking` carries the
+  filter counts, weights and per dimension contributions, satisfying FR-035.
+- [ ] T055 Eight personas in `evals/personas.json`. **Not started.**
+- [ ] T056 Harness in `evals/run_evals.py`. **Not started.**
+- [ ] T057 Expand to twenty personas. Only if time allows.
+- [ ] T058 Run the suite, commit results. **Not started.**
 
 ---
 
-## Milestone 5: Deliverables (hours 41 to 46)
+## Milestone 5: Deliverables
 
-- [ ] T059 README final pass, all eleven sections, including the requirements
-  traceability table and honest known limitations.
-- [ ] T060 [P] Write `docs/architecture.md`.
-- [ ] T061 Capture the four required screenshots.
-- [ ] T062 Slide deck against the organisers' template.
-- [ ] T063 Script and record the demonstration video.
-- [ ] T064 Walk the M-1 to M-10 table and name the file satisfying each row.
+- [ ] T059 README final pass: screenshots, worked example, traceability table, honest
+  known limitations naming `RESTWERT_RATE` and the household electricity price.
+- [ ] T060 `docs/architecture.md`.
+- [ ] T061 Four screenshots.
+- [ ] T062 Slide deck. **Required for submission.**
+- [ ] T063 Video demo. **Required for submission.**
+- [x] T064 Requirement traceability walked. All ten mandatory requirements map to a file;
+  the table is in `docs/state.md` and goes into the README at T059.
 
 ---
 
-## Cut order if behind schedule
+## Queued bugs
 
-1. `markt` MCP server (T052)
-2. Eval persona count (T057, then T055 to T058 entirely)
-3. TCO sophistication (T045 reduces to tax and energy only)
-4. Design polish (T051)
+Found by running the product. Restated precisely in `docs/state.md`.
 
-Never cut: the two MCP Apps, the dynamic surfaces, Docker, or the README.
+- [ ] B-1 Rental flow applies the five year **ownership** cost model to rentals,
+  including Kfz-Steuer a renter never pays. Replace with a rental cost model and label it
+  Mietkosten. The `gesamtkosten` scoring dimension must follow.
+- [ ] B-2 Pickup distance is a three percent soft weight for rentals. Make it a hard
+  constraint with a default radius, reported in the drop counts.
+- [ ] B-3 Residual raw display strings. `"Skoda"` should be `"Škoda"` in `data/vocab.py`.
 
-## Dependencies
+---
 
-- Phase 0 gates T017 to T021 and T041. Everything else may proceed regardless.
-- T023 gates the whole of Milestone 2. Containers are proven at hour 12, not at hour 45.
-- T044 gates T045. The formula is written down and sourced before it is coded.
-- Milestone 2 gates Milestone 3. Milestone 3 gates Milestone 4.
-- Milestone 4 is cut in full before any Milestone 1 to 3 item is compromised.
+## Cut, deliberately
+
+1. `markt` as an MCP App (T052). Optional in the brief; first in the agreed cut order.
+2. The AG-UI MCP Apps middleware topology (T017a). Superseded by Path 2.
+3. Spike B as a separate exercise (T002). Proven inside the real deliverable instead.
+4. Twenty evaluation personas (T057). Eight is the target if the harness is built at all.
+
+## Dependencies still live
+
+- T055 to T058 gate the eval results table in T059.
+- T045's rental branch is what B-1 fixes; do B-1 before quoting rental costs anywhere.
+- Nothing gates the deck or the video except the screenshots in T061.
