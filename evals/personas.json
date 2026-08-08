@@ -1,0 +1,213 @@
+{
+  "_hinweis": [
+    "Eight personas for the evaluation harness. Two rent rather than buy, so the",
+    "rental cost model and the default pickup radius are both exercised.",
+    "",
+    "erwartete_slots is ground truth for slot filling: what a correct interview would",
+    "have recorded after all turns. Dotted keys address a field inside a composite",
+    "slot. A value of null means the slot must be filled but any value is acceptable.",
+    "",
+    "harte_kriterien is the separate question of whether the recommendations obey the",
+    "constraints. It is checked against the listings themselves, not against the",
+    "agent's account of them, so a fluent wrong answer cannot pass."
+  ],
+  "personas": [
+    {
+      "id": "familie_kauf",
+      "beschreibung": "Family buying an estate, two children, firm budget.",
+      "lang": "de",
+      "turns": [
+        "Wir bekommen ein zweites Kind und brauchen ein groesseres Auto zum Kaufen. Budget hoechstens 25.000 Euro, mindestens fuenf Sitze und ein Kofferraum ab 450 Litern. Unfallfrei muss es sein.",
+        "Wir wohnen in Muenchen, 80339, und fahren etwa 15.000 km im Jahr."
+      ],
+      "erwartete_slots": {
+        "intent": "kauf",
+        "budget.max_kaufpreis_eur": 25000,
+        "constraints_hard.min_sitzplaetze": 5,
+        "constraints_hard.min_kofferraum_liter": 450,
+        "constraints_hard.unfallfrei_erforderlich": true,
+        "location.plz": "80339",
+        "jahresfahrleistung_km": 15000,
+        "use_case_tags": null
+      },
+      "harte_kriterien": {
+        "listing_type": "kauf",
+        "max_preis_eur": 25000,
+        "min_sitzplaetze": 5,
+        "min_kofferraum_liter": 450,
+        "unfallfrei": true
+      }
+    },
+    {
+      "id": "pendler_elektro",
+      "beschreibung": "Daily commuter who has decided on electric and automatic.",
+      "lang": "de",
+      "turns": [
+        "Ich pendle jeden Tag 40 km zur Arbeit und moechte ein Elektroauto kaufen, Automatik. Bis 32.000 Euro.",
+        "Ich fahre ungefaehr 22.000 km im Jahr und wohne in Berlin, 10115."
+      ],
+      "erwartete_slots": {
+        "intent": "kauf",
+        "budget.max_kaufpreis_eur": 32000,
+        "constraints_hard.getriebe": "Automatik",
+        "constraints_hard.kraftstoff": ["Elektro"],
+        "jahresfahrleistung_km": 22000,
+        "location.plz": "10115",
+        "use_case_tags": null
+      },
+      "harte_kriterien": {
+        "listing_type": "kauf",
+        "max_preis_eur": 32000,
+        "getriebe": "Automatik",
+        "kraftstoff": ["Elektro"]
+      }
+    },
+    {
+      "id": "stadt_klein",
+      "beschreibung": "City driver on a small budget who wants something easy to park.",
+      "lang": "de",
+      "turns": [
+        "Ich brauche ein kleines Auto fuer die Stadt, zum Kaufen, maximal 12.000 Euro. Gruene Plakette ist Pflicht, ich fahre viel in die Innenstadt.",
+        "Hoechstens 100.000 Kilometer auf der Uhr bitte. Ich wohne in Koeln, 50667."
+      ],
+      "erwartete_slots": {
+        "intent": "kauf",
+        "budget.max_kaufpreis_eur": 12000,
+        "constraints_hard.umweltplakette": "grün",
+        "constraints_hard.max_kilometerstand": 100000,
+        "location.plz": "50667",
+        "use_case_tags": null
+      },
+      "harte_kriterien": {
+        "listing_type": "kauf",
+        "max_preis_eur": 12000,
+        "umweltplakette": "grün",
+        "max_kilometerstand": 100000
+      }
+    },
+    {
+      "id": "umzug_miete",
+      "beschreibung": "Renter moving flat over a weekend. Rental cost model and pickup radius.",
+      "lang": "de",
+      "turns": [
+        "Ich ziehe am Wochenende um und moechte dafuer einen Transporter mieten, drei Tage. Hoechstens 95 Euro am Tag.",
+        "Ladevolumen mindestens 550 Liter. Ich wohne in Hamburg, 20095."
+      ],
+      "erwartete_slots": {
+        "intent": "miete",
+        "budget.max_tagessatz_eur": 95,
+        "mietdauer_tage": 3,
+        "constraints_hard.min_kofferraum_liter": 550,
+        "location.plz": "20095",
+        "use_case_tags": null
+      },
+      "harte_kriterien": {
+        "listing_type": "miete",
+        "max_tagessatz_eur": 95,
+        "min_kofferraum_liter": 550,
+        "max_entfernung_km": 100,
+        "von_plz": "20095"
+      }
+    },
+    {
+      "id": "wochenende_miete",
+      "beschreibung": "Weekend trip rental, automatic, short hire, no load requirement.",
+      "lang": "en",
+      "turns": [
+        "I want to rent a car for a weekend trip, two days, automatic please. No more than 70 euro a day.",
+        "I am in Stuttgart, postcode 70173."
+      ],
+      "erwartete_slots": {
+        "intent": "miete",
+        "budget.max_tagessatz_eur": 70,
+        "mietdauer_tage": 2,
+        "constraints_hard.getriebe": "Automatik",
+        "location.plz": "70173",
+        "use_case_tags": null
+      },
+      "harte_kriterien": {
+        "listing_type": "miete",
+        "max_tagessatz_eur": 70,
+        "getriebe": "Automatik",
+        "max_entfernung_km": 100,
+        "von_plz": "70173"
+      }
+    },
+    {
+      "id": "gewerblich_kauf",
+      "beschreibung": "Business buyer who needs the VAT shown separately.",
+      "lang": "de",
+      "turns": [
+        "Ich kaufe einen Dienstwagen fuer meinen Betrieb, bis 40.000 Euro. Diesel oder Benzin, Automatik.",
+        "Unfallfrei und hoechstens 80.000 Kilometer. Standort Frankfurt, 60311."
+      ],
+      "erwartete_slots": {
+        "intent": "kauf",
+        "budget.max_kaufpreis_eur": 40000,
+        "constraints_hard.getriebe": "Automatik",
+        "constraints_hard.unfallfrei_erforderlich": true,
+        "constraints_hard.max_kilometerstand": 80000,
+        "location.plz": "60311",
+        "use_case_tags": null
+      },
+      "harte_kriterien": {
+        "listing_type": "kauf",
+        "max_preis_eur": 40000,
+        "getriebe": "Automatik",
+        "unfallfrei": true,
+        "max_kilometerstand": 80000
+      }
+    },
+    {
+      "id": "langstrecke_kauf",
+      "beschreibung": "High mileage long distance driver who wants a diesel estate.",
+      "lang": "en",
+      "turns": [
+        "I drive a lot of motorway, about 35000 km a year, and I want to buy a diesel estate. Budget up to 30000 euro.",
+        "It has to be accident free and I am in Hannover, postcode 30159."
+      ],
+      "erwartete_slots": {
+        "intent": "kauf",
+        "budget.max_kaufpreis_eur": 30000,
+        "constraints_hard.kraftstoff": ["Diesel"],
+        "constraints_hard.unfallfrei_erforderlich": true,
+        "jahresfahrleistung_km": 35000,
+        "location.plz": "30159",
+        "use_case_tags": null
+      },
+      "harte_kriterien": {
+        "listing_type": "kauf",
+        "max_preis_eur": 30000,
+        "kraftstoff": ["Diesel"],
+        "unfallfrei": true
+      }
+    },
+    {
+      "id": "budget_unmoeglich",
+      "beschreibung": "Constraints nothing can satisfy. Tests that the agent refuses rather than invents.",
+      "lang": "de",
+      "turns": [
+        "Ich moechte einen Oberklasse-Wagen kaufen, Elektro, Automatik, hoechstens 6.000 Euro und maximal 10.000 Kilometer gelaufen.",
+        "Unfallfrei muss er sein."
+      ],
+      "erwartete_slots": {
+        "intent": "kauf",
+        "budget.max_kaufpreis_eur": 6000,
+        "constraints_hard.kraftstoff": ["Elektro"],
+        "constraints_hard.getriebe": "Automatik",
+        "constraints_hard.max_kilometerstand": 10000,
+        "constraints_hard.unfallfrei_erforderlich": true,
+        "category_preference": ["Oberklasse"]
+      },
+      "harte_kriterien": {
+        "listing_type": "kauf",
+        "max_preis_eur": 6000,
+        "kraftstoff": ["Elektro"],
+        "getriebe": "Automatik",
+        "max_kilometerstand": 10000,
+        "unfallfrei": true,
+        "erwartet_leer": true
+      }
+    }
+  ]
+}
