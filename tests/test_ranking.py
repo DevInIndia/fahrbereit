@@ -276,9 +276,69 @@ def test_comparison_deltas_match_the_underlying_listings(listings):
 
 
 def test_top_factors_are_drawn_from_the_score_data(listings):
-    """Narration must come from the breakdown, never from the model's imagination."""
+    """Narration must come from the breakdown, never from the model's imagination.
+
+    Each factor names a real dimension and quotes either that dimension's own
+    justification or the detail of the component that limited it. Nothing else may
+    appear, because anything else would be text the model could not verify.
+    """
     result = rank(family_state(), listings, limit=3)
     for rec in result.empfehlungen:
-        factors = rec.score.top_faktoren()
-        justifications = {d.begruendung for d in rec.score.dimensionen}
-        assert set(factors).issubset(justifications)
+        labels = {d.label for d in rec.score.dimensionen}
+        details = {d.begruendung for d in rec.score.dimensionen}
+        for dim in rec.score.dimensionen:
+            details.update(c.detail for c in dim.komponenten)
+
+        for factor in rec.score.top_faktoren():
+            assert any(factor.startswith(label) for label in labels), factor
+            assert any(detail in factor for detail in details), factor
+
+
+def test_a_limited_dimension_names_the_component_that_limited_it(listings):
+    """A bare 41 tells a user nothing. It has to say what to change."""
+    result = rank(family_state(), listings, limit=20)
+    limited = [
+        dim
+        for rec in result.empfehlungen
+        for dim in rec.score.dimensionen
+        if dim.begrenzt_durch
+    ]
+    assert limited, "no composite dimension reported a limiting component"
+    for dim in limited:
+        assert dim.begrenzt_durch in {c.name for c in dim.komponenten}
+        explanation = dim.erklaerung()
+        assert "begrenzt durch" in explanation
+        assert dim.begrenzt_durch in explanation
+
+
+def test_the_weakest_component_is_the_one_reported(listings):
+    result = rank(family_state(), listings, limit=20)
+    for rec in result.empfehlungen:
+        for dim in rec.score.dimensionen:
+            if dim.komponenten:
+                worst = min(dim.komponenten, key=lambda c: c.wert)
+                assert dim.begrenzt_durch == worst.name
+
+
+def test_scores_declare_themselves_relative_to_the_survivor_pool(listings):
+    """Percentile scores move when the filter moves. That must be visible."""
+    st = family_state()
+    survivors, _ = hard_filter(st, listings)
+    result = rank(st, listings, limit=5)
+    for rec in result.empfehlungen:
+        assert rec.score.basis_anzahl == len(survivors)
+        assert str(len(survivors)) in rec.score.relativ_hinweis
+        assert all(d.relativ for d in rec.score.dimensionen)
+
+
+def test_the_same_car_scores_differently_against_a_different_pool(listings):
+    """Documents the consequence of ranking rather than rating, so it is not a surprise."""
+    st = family_state()
+    survivors, _ = hard_filter(st, listings)
+    target = survivors[0]
+
+    wide = {r.listing.id: r.score.total for r in rank(st, survivors, limit=len(survivors)).empfehlungen}
+    narrow_pool = survivors[:5]
+    narrow = {r.listing.id: r.score.total for r in rank(st, narrow_pool, limit=5).empfehlungen}
+
+    assert wide[target.id] != narrow[target.id]

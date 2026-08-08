@@ -103,22 +103,69 @@ class FilterReport(BaseModel):
         return max(self.ausgeschlossen.items(), key=lambda kv: kv[1])[0]
 
 
+class Component(BaseModel):
+    """One ingredient of a composite dimension, named so it can be pointed at."""
+
+    name: str      # "Kofferraum"
+    wert: float    # 0 to 100
+    detail: str    # "380 l von 400 l gewünscht"
+
+
 class DimensionScore(BaseModel):
     name: Dimension
     label: str
     gewicht: float
-    rohwert: float   # 0 to 100 on the dimension's own scale
+    rohwert: float   # 0 to 100, a rank position within the survivor pool
     beitrag: float   # gewicht * rohwert
     begruendung: str
+    komponenten: list[Component] = Field(default_factory=list)
+    begrenzt_durch: Optional[str] = None  # the component that capped a weakest link
+    relativ: bool = True  # scored against the pool, not on an absolute scale
+
+    def erklaerung(self) -> str:
+        """A sentence a user can act on, not a bare number."""
+        if self.begrenzt_durch:
+            limiting = next(
+                (c for c in self.komponenten if c.name == self.begrenzt_durch), None
+            )
+            if limiting:
+                # The headline number is a rank in the field; the limit is internal to
+                # the composite. Saying both plainly avoids reading a rank of 100 and a
+                # limiting component as a contradiction.
+                return (
+                    f"{self.label}: Rang {self.rohwert:.0f} von 100 im Feld, "
+                    f"intern begrenzt durch {limiting.name} ({limiting.detail})"
+                )
+        return f"{self.label}: Rang {self.rohwert:.0f} von 100 im Feld, {self.begruendung}"
 
 
 class ScoreBreakdown(BaseModel):
     dimensionen: list[DimensionScore]
     total: float
+    basis_anzahl: int = 0  # how many survivors this score was ranked against
+
+    @property
+    def relativ_hinweis(self) -> str:
+        """Say out loud that the score is a rank, not an absolute rating.
+
+        Percentile normalisation means the same car scores differently against a
+        different pool. That is intended, and a judge who notices scores move when the
+        filter changes should read it as designed rather than as instability.
+        """
+        return (
+            f"Punktwert ist eine Platzierung unter {self.basis_anzahl} verbliebenen "
+            f"Angeboten, keine absolute Note. Ändern sich die Filter, ändert sich das "
+            f"Vergleichsfeld und damit der Punktwert."
+        )
 
     def top_faktoren(self, n: int = 3) -> list[str]:
         ranked = sorted(self.dimensionen, key=lambda d: -d.beitrag)
-        return [d.begruendung for d in ranked[:n] if d.beitrag > 0]
+        return [d.erklaerung() for d in ranked[:n] if d.beitrag > 0]
+
+    def schwachstellen(self, n: int = 2) -> list[str]:
+        """The dimensions holding this car back, named so they can be acted on."""
+        ranked = sorted(self.dimensionen, key=lambda d: d.rohwert)
+        return [d.erklaerung() for d in ranked[:n] if d.rohwert < 50]
 
 
 class Comparison(BaseModel):
@@ -233,87 +280,160 @@ def _clamp(value: float, low: float = 0.0, high: float = 100.0) -> float:
     return max(low, min(high, value))
 
 
-def _relative(value: float, best: float, worst: float, lower_is_better: bool = True) -> float:
-    """Place a value on a 0 to 100 scale against the candidate set."""
-    if best == worst:
-        return 50.0
-    if lower_is_better:
-        return _clamp(100.0 * (worst - value) / (worst - best))
-    return _clamp(100.0 * (value - worst) / (best - worst))
+def _percentile_scores(values: list[float], higher_is_better: bool = True) -> list[float]:
+    """Map raw values onto 0 to 100 by their rank within the candidate pool.
+
+    This is what stops a dimension quietly becoming a constant. An absolute scale can
+    compress every candidate into a narrow band, at which point the dimension carries
+    weight without carrying information. A rank based scale always spans the full range
+    across whatever is actually being compared.
+
+    The consequence is that a score is a position against the current survivors, not an
+    absolute rating, so the same car scores differently against a different pool. That
+    is intended and it is surfaced rather than left implicit, via basis_anzahl and the
+    relativ flag on each dimension.
+
+    Ties share the average of the ranks they span, so equal inputs always produce equal
+    outputs and ordering stays reproducible.
+    """
+    n = len(values)
+    if n == 0:
+        return []
+    if n == 1:
+        return [50.0]
+
+    order = sorted(range(n), key=lambda i: values[i], reverse=not higher_is_better)
+    out = [0.0] * n
+    pos = 0
+    while pos < n:
+        run_end = pos
+        while run_end + 1 < n and values[order[run_end + 1]] == values[order[pos]]:
+            run_end += 1
+        average_rank = (pos + run_end) / 2.0
+        score = 100.0 * average_rank / (n - 1)
+        for k in range(pos, run_end + 1):
+            out[order[k]] = round(score, 4)
+        pos = run_end + 1
+    return out
 
 
-def _einsatzzweck_score(listing: Listing, state: InterviewState) -> tuple[float, str]:
-    """How well the vehicle suits what the person actually does with it."""
+def _weakest_link(components: list[Component]) -> tuple[float, Optional[str]]:
+    """Score a composite dimension by its worst component, and name that component.
+
+    Averaging was the previous behaviour and it destroyed the range: a five seat car
+    with a small boot averaged out to the middle of the field instead of reading as
+    unsuitable. Taking the minimum restores the discrimination, and because the limiting
+    component is returned alongside it the result stays explainable. A bare 41 tells a
+    user nothing. "41, limited by boot volume" tells them what to change.
+    """
+    if not components:
+        return 50.0, None
+    worst = min(components, key=lambda c: c.wert)
+    return worst.wert, worst.name
+
+
+def _einsatzzweck_components(listing: Listing, state: InterviewState) -> list[Component]:
+    """One component per thing the stated use case actually demands."""
     from agent.state import UseCaseTag
 
     tags = set(state.use_case_tags.value or [])
-    if not tags:
-        return 50.0, "kein Einsatzzweck angegeben, neutral bewertet"
-
-    scores: list[float] = []
-    notes: list[str] = []
+    constraints = state.constraints_hard.value
+    components: list[Component] = []
 
     if UseCaseTag.FAMILIE in tags:
-        # INVENTED divisors. Two seats scores zero and seven scores full; 700 litres
-        # is treated as a full boot. Both chosen by eye, not from segment data.
-        seats = _clamp((listing.sitzplaetze - 2) / 5 * 100)
-        boot = _clamp(listing.kofferraum_liter / 700 * 100)
-        scores.append((seats + boot) / 2)
-        notes.append(f"{listing.sitzplaetze} Sitze, {listing.kofferraum_liter} l Kofferraum")
+        # INVENTED divisors. Two seats scores zero and seven scores full; 700 litres is
+        # treated as a full boot. Both chosen by eye, not from segment data.
+        needed = (constraints.min_kofferraum_liter if constraints else None) or 400
+        components.append(
+            Component(
+                name="Sitzplätze",
+                wert=_clamp((listing.sitzplaetze - 2) / 5 * 100),
+                detail=f"{listing.sitzplaetze} Sitze",
+            )
+        )
+        components.append(
+            Component(
+                name="Kofferraum",
+                wert=_clamp(listing.kofferraum_liter / 700 * 100),
+                detail=f"{listing.kofferraum_liter} l gegen {needed} l gewünscht",
+            )
+        )
 
     if UseCaseTag.UMZUG in tags:
         # INVENTED. 900 litres treated as a full load volume for a move.
-        scores.append(_clamp(listing.kofferraum_liter / 900 * 100))
-        notes.append(f"{listing.kofferraum_liter} l Ladevolumen")
+        components.append(
+            Component(
+                name="Ladevolumen",
+                wert=_clamp(listing.kofferraum_liter / 900 * 100),
+                detail=f"{listing.kofferraum_liter} l Ladevolumen",
+            )
+        )
 
     if UseCaseTag.STADTVERKEHR in tags:
-        # INVENTED. Mass as a proxy for how easy a car is to place in a city, with
-        # 900 kg as ideal and 2100 kg as worst. Mass is a proxy for footprint, which is
-        # itself a proxy for parking; two removes from the thing actually being scored.
-        compact = _clamp(100 - (listing.leermasse_kg - 900) / 1200 * 100)
-        scores.append(compact)
-        notes.append(f"{listing.leermasse_kg} kg Leermasse, stadttauglich")
+        # INVENTED. Mass as a proxy for how easy a car is to place in a city, 900 kg
+        # ideal and 2100 kg worst. Mass proxies footprint, which proxies parking, so
+        # this is two removes from the thing actually being judged.
+        components.append(
+            Component(
+                name="Stadttauglichkeit",
+                wert=_clamp(100 - (listing.leermasse_kg - 900) / 1200 * 100),
+                detail=f"{listing.leermasse_kg} kg Leermasse",
+            )
+        )
 
     if UseCaseTag.PENDELN in tags or UseCaseTag.LANGSTRECKE in tags:
+        # INVENTED ceilings: 25 kWh and 12 l per 100 km treated as worst case.
         if listing.ist_elektro:
-            # INVENTED ceilings: 25 kWh and 12 l per 100 km treated as worst case.
-            consumption = _clamp(100 - (listing.verbrauch_kwh_100km or 20) / 25 * 100)
-            notes.append(f"{listing.verbrauch_kwh_100km} kWh/100 km")
+            wert = _clamp(100 - (listing.verbrauch_kwh_100km or 20) / 25 * 100)
+            detail = f"{listing.verbrauch_kwh_100km} kWh/100 km"
         else:
-            consumption = _clamp(100 - (listing.verbrauch_l_100km or 8) / 12 * 100)
-            notes.append(f"{listing.verbrauch_l_100km} l/100 km")
-        scores.append(consumption)
+            wert = _clamp(100 - (listing.verbrauch_l_100km or 8) / 12 * 100)
+            detail = f"{listing.verbrauch_l_100km} l/100 km"
+        components.append(Component(name="Verbrauch", wert=wert, detail=detail))
 
     if UseCaseTag.LANGSTRECKE in tags:
         # INVENTED. 150 kW treated as ample for long distance work.
-        scores.append(_clamp(listing.leistung_kw / 150 * 100))
+        components.append(
+            Component(
+                name="Motorisierung",
+                wert=_clamp(listing.leistung_kw / 150 * 100),
+                detail=f"{listing.leistung_kw} kW",
+            )
+        )
 
     if UseCaseTag.GEWERBLICH in tags and listing.listing_type == "kauf":
-        scores.append(100.0 if listing.mwst_ausweisbar else 40.0)
-        notes.append("MwSt. ausweisbar" if listing.mwst_ausweisbar else "MwSt. nicht ausweisbar")
+        components.append(
+            Component(
+                name="Vorsteuerabzug",
+                wert=100.0 if listing.mwst_ausweisbar else 40.0,
+                detail="MwSt. ausweisbar" if listing.mwst_ausweisbar else "MwSt. nicht ausweisbar",
+            )
+        )
 
-    if not scores:
-        return 50.0, "Einsatzzweck neutral"
-    return sum(scores) / len(scores), "; ".join(notes) or "Einsatzzweck bewertet"
+    return components
 
 
-def _zustand_score(listing: Listing) -> tuple[float, str]:
-    parts: list[float] = []
-    notes: list[str] = []
-
-    parts.append(100.0 if listing.unfallfrei else 0.0)
-    notes.append("unfallfrei" if listing.unfallfrei else "Unfallschaden")
-
-    # INVENTED. 25 points deducted per previous owner beyond the first.
-    parts.append(_clamp(100 - (listing.vorbesitzer - 1) * 25))
-    notes.append(f"{listing.vorbesitzer} Vorbesitzer")
-
+def _zustand_components(listing: Listing) -> list[Component]:
     hu = listing.hu_monate_verbleibend()
-    # INVENTED. A full 24 months until the next inspection scores full marks.
-    parts.append(_clamp(hu / 24 * 100))
-    notes.append(f"HU noch {max(hu, 0)} Monate" if hu > 0 else "HU fällig")
-
-    return sum(parts) / len(parts), ", ".join(notes)
+    return [
+        Component(
+            name="Unfallfreiheit",
+            wert=100.0 if listing.unfallfrei else 0.0,
+            detail="unfallfrei" if listing.unfallfrei else "Unfallschaden",
+        ),
+        # INVENTED. 25 points deducted per previous owner beyond the first.
+        Component(
+            name="Vorbesitzer",
+            wert=_clamp(100 - (listing.vorbesitzer - 1) * 25),
+            detail=f"{listing.vorbesitzer} Vorbesitzer",
+        ),
+        # INVENTED. A full 24 months until the next inspection scores full marks.
+        Component(
+            name="HU",
+            wert=_clamp(hu / 24 * 100),
+            detail=f"HU noch {max(hu, 0)} Monate" if hu > 0 else "HU fällig",
+        ),
+    ]
 
 
 def score_listings(
@@ -321,11 +441,14 @@ def score_listings(
     state: InterviewState,
     tco_fn: Optional[Callable[[Listing, InterviewState], int]] = None,
 ) -> list[tuple[Listing, ScoreBreakdown, Optional[int]]]:
-    """Stage two. Weighted sum over named dimensions, all relative to the survivors.
+    """Stage two. Weighted sum over named dimensions, normalised against the pool.
 
-    `tco_fn` supplies five year cost of ownership. When absent, running cost falls
-    back to consumption, which is a proxy rather than a substitute, and the
-    justification text says so.
+    Every dimension is percentile normalised against the survivors, so each one uses
+    the full range and none can silently flatten into a constant offset.
+
+    `tco_fn` supplies five year cost of ownership. When absent, running cost falls back
+    to consumption, which is a proxy rather than a substitute, and the justification
+    text says so.
     """
     if not survivors:
         return []
@@ -334,89 +457,88 @@ def score_listings(
     intent = state.effective_intent()
     ceiling = state.budget.value.ceiling_for(intent) if state.budget.value else None
     location = state.location.value
+    n = len(survivors)
 
-    costs: dict[str, float] = {}
+    costs: list[float] = []
     for listing in survivors:
         if tco_fn:
-            costs[listing.id] = float(tco_fn(listing, state))
+            costs.append(float(tco_fn(listing, state)))
         else:
             base = listing.verbrauch_kwh_100km or listing.verbrauch_l_100km or 6.0
-            costs[listing.id] = base * 1000
+            costs.append(base * 1000)
 
     prices = [float(l.preis_referenz()) for l in survivors]
     ages = [l.alter_jahre() for l in survivors]
     kms = [float(l.kilometerstand) for l in survivors]
-    cost_values = [costs[l.id] for l in survivors]
 
-    distances: dict[str, Optional[float]] = {}
-    for listing in survivors:
-        distances[listing.id] = (
-            distance_km(location.plz, listing.standort_plz)
-            if location and location.plz
-            else None
-        )
-    known_distances = [d for d in distances.values() if d is not None]
+    raw_distances = [
+        distance_km(location.plz, l.standort_plz) if location and location.plz else None
+        for l in survivors
+    ]
+    known = sorted(d for d in raw_distances if d is not None)
+    # Unknown distance takes the median, so it neither helps nor hurts.
+    fallback = known[len(known) // 2] if known else 0.0
+    distances = [d if d is not None else fallback for d in raw_distances]
+
+    zweck_parts = [_einsatzzweck_components(l, state) for l in survivors]
+    zustand_parts = [_zustand_components(l) for l in survivors]
+    zweck = [_weakest_link(c) for c in zweck_parts]
+    zustand = [_weakest_link(c) for c in zustand_parts]
+
+    p_preis = _percentile_scores(prices, higher_is_better=False)
+    p_kosten = _percentile_scores(costs, higher_is_better=False)
+    # Age and mileage combined before ranking, so one composite position results.
+    p_alter = _percentile_scores(
+        [a * 0.5 + k / 30_000 * 0.5 for a, k in zip(ages, kms)], higher_is_better=False
+    )
+    p_zweck = _percentile_scores([v for v, _ in zweck], higher_is_better=True)
+    p_zustand = _percentile_scores([v for v, _ in zustand], higher_is_better=True)
+    p_entfernung = _percentile_scores(distances, higher_is_better=False)
+
+    def de(value: int) -> str:
+        return format(int(value), ",").replace(",", ".")
 
     results: list[tuple[Listing, ScoreBreakdown, Optional[int]]] = []
 
-    for listing in survivors:
-        dims: list[DimensionScore] = []
+    for i, listing in enumerate(survivors):
+        note_preis = (
+            f"{de(prices[i])} EUR bei Budget {de(ceiling)} EUR"
+            if ceiling
+            else f"{de(prices[i])} EUR, kein Budget genannt"
+        )
 
-        # Price headroom against the stated budget.
-        if ceiling:
-            # Linear in price, so the dimension stays strictly ordered. An earlier
-            # version doubled the headroom, which saturated at 100 for anything under
-            # half the budget and made every cheap car tie.
-            headroom = (ceiling - listing.preis_referenz()) / ceiling
-            raw = _clamp(headroom * 100)
-            note = f"{listing.preis_referenz():,} EUR bei Budget {ceiling:,} EUR".replace(",", ".")
-        else:
-            raw = _relative(float(listing.preis_referenz()), min(prices), max(prices))
-            note = f"{listing.preis_referenz():,} EUR, kein Budget genannt".replace(",", ".")
-        dims.append(("preis", raw, note))
-
-        # Five year running cost.
-        raw = _relative(costs[listing.id], min(cost_values), max(cost_values))
         if tco_fn:
-            note = f"{int(costs[listing.id]):,} EUR Gesamtkosten über fünf Jahre".replace(",", ".")
+            note_kosten = f"{de(costs[i])} EUR Gesamtkosten über fünf Jahre"
         else:
             unit = "kWh" if listing.ist_elektro else "l"
             base = listing.verbrauch_kwh_100km or listing.verbrauch_l_100km
-            note = f"Verbrauch {base} {unit}/100 km, Näherung ohne Gesamtkostenrechnung"
-        dims.append(("kosten", raw, note))
+            note_kosten = f"Verbrauch {base} {unit}/100 km, Näherung ohne Gesamtkosten"
 
-        # Age and mileage against the candidate set.
-        age_score = _relative(listing.alter_jahre(), min(ages), max(ages))
-        km_score = _relative(float(listing.kilometerstand), min(kms), max(kms))
-        raw = (age_score + km_score) / 2
-        note = (
-            f"EZ {listing.erstzulassung}, "
-            f"{format(listing.kilometerstand, ',').replace(',', '.')} km"
+        note_zweck = "; ".join(f"{c.name} {c.detail}" for c in zweck_parts[i]) or (
+            "kein Einsatzzweck angegeben, neutral bewertet"
         )
-        dims.append(("alter", raw, note))
+        note_zustand = ", ".join(c.detail for c in zustand_parts[i])
+        note_entfernung = (
+            f"{distances[i]:.0f} km bis {listing.standort_ort}"
+            if raw_distances[i] is not None
+            else "Entfernung unbekannt, als Mittelwert gewertet"
+        )
 
-        raw, note = _einsatzzweck_score(listing, state)
-        dims.append(("zweck", raw, note))
-
-        raw, note = _zustand_score(listing)
-        dims.append(("zustand", raw, note))
-
-        d = distances[listing.id]
-        if d is None or not known_distances:
-            raw, note = 50.0, "Entfernung unbekannt"
-        else:
-            raw = _relative(d, min(known_distances), max(known_distances))
-            note = f"{d:.0f} km bis {listing.standort_ort}"
-        dims.append(("entfernung", raw, note))
-
-        keys = [
-            Dimension.PREIS_SPIELRAUM,
-            Dimension.GESAMTKOSTEN,
-            Dimension.ALTER_LAUFLEISTUNG,
-            Dimension.EINSATZZWECK,
-            Dimension.ZUSTAND,
-            Dimension.ENTFERNUNG,
+        spec = [
+            (Dimension.PREIS_SPIELRAUM, p_preis[i], note_preis, [], None),
+            (Dimension.GESAMTKOSTEN, p_kosten[i], note_kosten, [], None),
+            (
+                Dimension.ALTER_LAUFLEISTUNG,
+                p_alter[i],
+                f"EZ {listing.erstzulassung}, {de(listing.kilometerstand)} km",
+                [],
+                None,
+            ),
+            (Dimension.EINSATZZWECK, p_zweck[i], note_zweck, zweck_parts[i], zweck[i][1]),
+            (Dimension.ZUSTAND, p_zustand[i], note_zustand, zustand_parts[i], zustand[i][1]),
+            (Dimension.ENTFERNUNG, p_entfernung[i], note_entfernung, [], None),
         ]
+
         scored = [
             DimensionScore(
                 name=key,
@@ -424,15 +546,24 @@ def score_listings(
                 gewicht=round(weights[key], 4),
                 rohwert=round(raw_value, 2),
                 beitrag=round(weights[key] * raw_value, 4),
-                begruendung=note_text,
+                begruendung=note,
+                komponenten=components,
+                begrenzt_durch=limit,
+                relativ=True,
             )
-            for key, (_, raw_value, note_text) in zip(keys, dims)
+            for key, raw_value, note, components, limit in spec
         ]
-        breakdown = ScoreBreakdown(
-            dimensionen=scored,
-            total=round(sum(d.beitrag for d in scored), 2),
+        results.append(
+            (
+                listing,
+                ScoreBreakdown(
+                    dimensionen=scored,
+                    total=round(sum(d.beitrag for d in scored), 2),
+                    basis_anzahl=n,
+                ),
+                int(costs[i]) if tco_fn else None,
+            )
         )
-        results.append((listing, breakdown, int(costs[listing.id]) if tco_fn else None))
 
     return results
 

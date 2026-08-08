@@ -200,20 +200,42 @@ def print_winner(result, state: InterviewState) -> None:
     )
     say(f"  {listing.haendler}, {listing.standort_plz} {listing.standort_ort}\n")
 
-    say(f"  {'Dimension':<24}{'Gewicht':>8}{'Wert':>7}{'Beitrag':>9}  Begründung")
+    say(f"  {'Dimension':<24}{'Gewicht':>8}{'Rang':>7}{'Beitrag':>9}  Begründung")
     for dim in top.score.dimensionen:
+        limited = f"  [begrenzt durch {dim.begrenzt_durch}]" if dim.begrenzt_durch else ""
         say(
             f"  {dim.label:<24}{dim.gewicht:>8.2f}{dim.rohwert:>7.1f}{dim.beitrag:>9.2f}"
-            f"  {dim.begruendung[:34]}"
+            f"  {dim.begruendung[:40]}{limited}"
         )
     total = sum(d.beitrag for d in top.score.dimensionen)
     say(f"  {'GESAMT':<24}{'':>8}{'':>7}{total:>9.2f}")
-    say(f"  Summe der Beiträge {total:.2f} entspricht dem Gesamtwert "
-          f"{top.score.total:.2f}\n")
+    say(
+        f"  Summe der Beiträge {total:.2f} entspricht dem Gesamtwert "
+        f"{top.score.total:.2f}\n"
+    )
+
+    # Percentile scores are positions, not absolute marks. Say so where it is read.
+    say(f"  {top.score.relativ_hinweis}\n")
+
+    # Composite dimensions are scored by their worst component, so name it.
+    limiting = [d for d in top.score.dimensionen if d.begrenzt_durch]
+    if limiting:
+        say("  Zusammengesetzte Dimensionen, jeweils vom schwächsten Bestandteil bestimmt:")
+        for dim in limiting:
+            say(f"    {dim.label}")
+            for comp in sorted(dim.komponenten, key=lambda c: c.wert):
+                mark = "  <- begrenzend" if comp.name == dim.begrenzt_durch else ""
+                say(f"      {comp.name:<20}{comp.wert:>6.1f}  {comp.detail}{mark}")
+        say()
 
     say("  Ausschlaggebend:")
     for factor in top.score.top_faktoren():
-        say(f"    - {factor}")
+        say(f"    + {factor}")
+    weaknesses = top.score.schwachstellen()
+    if weaknesses:
+        say("  Schwächen:")
+        for weakness in weaknesses:
+            say(f"    - {weakness}")
     say()
 
 
@@ -300,6 +322,12 @@ def main() -> int:
 
     say(RULE)
     say("  Alle Zahlen deterministisch berechnet. Kein Modellaufruf, kein Netzwerk.")
+    say("  Gleicher Zustand und gleicher Datenbestand ergeben immer dieselbe Rangfolge.")
+    say()
+    say("  Die Gewichtung gehört Ihnen. Die Voreinstellung ist ein Startpunkt,")
+    say("  kein Urteil. Jede Dimension ist einzeln einstellbar, zum Beispiel:")
+    say("    python -m scripts.demo_ranking --weights gesamtkosten=1.0")
+    say("    python -m scripts.demo_ranking --weights preis_spielraum=0.6,zustand=0.4")
     say(RULE)
     say()
     return 0
