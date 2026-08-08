@@ -1,27 +1,33 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "fahrbereit"
 version = "0.1.0"
 description = "Conversational car buying and rental advisor for the German market"
 requires-python = ">=3.11,<4.0"
 
+# Pinned to the versions this project was built and tested against. langchain-core is
+# a range rather than a pin because deepagents and langchain each constrain it, and an
+# exact pin makes the resolution impossible.
 dependencies = [
     # Agent harness and graph
     "deepagents==0.7.5",
     "langchain==1.3.14",
-    "langchain-core==1.5.0",
+    "langchain-core>=1.5.0,<2.0.0",
     "langgraph==1.2.10",
 
     # Model providers. Only agent/model/ may import these.
     "langchain-google-genai==4.3.2",
-    "langchain-openai==1.4.2",
+    "langchain-openai>=1.0,<2.0",
 
-    # Transport. ag-ui-langgraph needs fastapi but does not declare it.
-    "ag-ui-langgraph==0.0.42",
+    # MCP servers and client
+    "mcp==2.0.0",
+
+    # HTTP
     "fastapi==0.141.1",
     "uvicorn==0.52.1",
-
-    # Marketplace MCP server
-    "mcp==2.0.0",
 
     # State
     "pydantic>=2.9",

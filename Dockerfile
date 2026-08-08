@@ -13,18 +13,13 @@ ENV PYTHONUNBUFFERED=1 \
 WORKDIR /app
 
 # Dependencies first, so editing source does not invalidate the dependency layer.
+# pyproject.toml is the single source of truth: duplicating the list here would let
+# the container and a local checkout drift apart silently.
 COPY pyproject.toml ./
-RUN pip install --upgrade pip \
- && pip install \
-      "deepagents==0.7.5" \
-      "langchain==1.3.14" \
-      "langgraph==1.2.10" \
-      "langchain-google-genai==4.3.2" \
-      "langchain-openai==1.4.2" \
-      "mcp==2.0.0" \
-      "fastapi==0.141.1" \
-      "uvicorn==0.52.1" \
-      "pydantic>=2.9"
+RUN mkdir -p agent && touch agent/__init__.py \
+ && pip install --upgrade pip \
+ && pip install . \
+ && rm -rf agent
 
 COPY agent/ ./agent/
 COPY mcpapps/ ./mcpapps/
