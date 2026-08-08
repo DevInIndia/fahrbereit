@@ -61,10 +61,22 @@
 
 html, body, #root { height: 100%; margin: 0; }
 
+/*
+ * BMW Type Next is named first and never shipped. It is BMW's licensed typeface, so
+ * bundling or self hosting it would be exactly the copying we are told not to do.
+ * Naming it only asks the operating system whether it is already there; on any
+ * machine that does not have it, the Helvetica Neue Light chain below is what
+ * renders, which is the specified fallback and what this design is drawn against.
+ */
+:root {
+  --schrift: "BMW Type Next", "BMWTypeNext", "Helvetica Neue Light",
+             "HelveticaNeue-Light", "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
 body {
   background: var(--ground);
   color: var(--ink);
-  font: 400 14px/1.6 "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font: 400 14px/1.65 var(--schrift);
   -webkit-font-smoothing: antialiased;
   /* The theme switch is instant, but a tinted flash between the two grounds reads
      as a reload. Easing the ground alone keeps it calm without animating text. */
@@ -76,8 +88,10 @@ body {
   font-feature-settings: "tnum" 1;
 }
 
-h1 { font: 300 clamp(26px, 3.2vw, 40px)/1.08 inherit; letter-spacing: -0.025em; margin: 0; }
-h2 { font: 400 17px/1.25 inherit; letter-spacing: -0.015em; margin: 0; }
+/* Three weights, used for three jobs and never mixed. Light carries display type,
+   regular carries reading text, semibold carries anything that is an instruction. */
+h1 { font: 300 clamp(28px, 3.4vw, 44px)/1.06 var(--schrift); letter-spacing: -0.03em; margin: 0; }
+h2 { font: 300 19px/1.3 var(--schrift); letter-spacing: -0.02em; margin: 0; }
 
 .eyebrow {
   font-size: 10px;
@@ -139,12 +153,14 @@ h2 { font: 400 17px/1.25 inherit; letter-spacing: -0.015em; margin: 0; }
 .segment { display: inline-flex; border: 1px solid var(--border); }
 .segment button {
   border: 0;
+  border-radius: 0;
   border-right: 1px solid var(--border);
-  padding: 6px 12px;
-  font-size: 11px;
+  padding: 7px 13px;
+  font: 600 11px/1.2 var(--schrift);
   letter-spacing: 0.06em;
   background: transparent;
   color: var(--ink-faint);
+  gap: 6px;
 }
 .segment button:last-child { border-right: 0; }
 .segment button:hover { color: var(--ink); background: var(--surface); }
@@ -199,15 +215,19 @@ h2 { font: 400 17px/1.25 inherit; letter-spacing: -0.015em; margin: 0; }
 .nav-tab {
   background: transparent;
   border: 0;
+  border-radius: 0;
   border-bottom: 2px solid transparent;
   color: var(--ink-dim);
-  padding: 15px 4px 13px;
-  margin-right: 20px;
-  font-size: 13px;
+  padding: 17px 4px 15px;
+  margin-right: 26px;
+  font: 400 13px/1.2 var(--schrift);
   letter-spacing: 0.02em;
   cursor: pointer;
   white-space: nowrap;
+  gap: 8px;
 }
+.nav-tab:hover { border-bottom-color: var(--border-strong); }
+.nav-tab.aktiv { font-weight: 600; }
 .nav-tab:last-child { margin-right: 0; }
 .nav-tab:hover { color: var(--ink); }
 .nav-tab.aktiv { color: var(--ink); border-bottom-color: var(--accent); }
@@ -217,21 +237,73 @@ h2 { font: 400 17px/1.25 inherit; letter-spacing: -0.015em; margin: 0; }
 .shell {
   max-width: var(--shell-max);
   margin: 0 auto;
-  padding: 32px 30px 80px;
+  padding: 44px 40px 110px;
 }
+@media (max-width: 700px) { .shell { padding: 24px 18px 70px; } }
 
 .haupt { min-width: 0; }
-.stack > * + * { margin-top: 18px; }
+.stack > * + * { margin-top: 24px; }
 
 .panel {
   background: var(--panel);
   border: 1px solid var(--border);
-  padding: 20px 22px;
-  margin-top: 18px;
+  padding: 26px 28px;
+  margin-top: 24px;
 }
+@media (max-width: 700px) { .panel { padding: 20px 18px; } }
 
-.kopf { padding: 4px 0 18px; }
-.kopf p { margin: 8px 0 0; font-size: 13px; max-width: 68ch; }
+/* The one display heading on the page. Centred, with air above and below it, the
+   way a manufacturer opens a section. Everything after it is left aligned, because
+   centred body text and centred tables are harder to read, not more premium. */
+.kopf { padding: 26px 0 30px; text-align: center; }
+.kopf p {
+  margin: 14px auto 0;
+  font-size: 13.5px;
+  max-width: 74ch;
+  color: var(--ink-dim);
+}
+.kopf .eyebrow { margin-bottom: 14px; }
+@media (max-width: 700px) { .kopf { padding: 14px 0 22px; } }
+
+/* ------------------------------------------------------------------ icons */
+
+/*
+ * One icon system, thin line only, at two sizes: 20px in navigation and buttons,
+ * 40px where an icon heads a card. Stroke weight is set once here so a mixed
+ * weight cannot creep in from a component that passes its own.
+ */
+.ikone { flex: none; stroke-width: 1.5; }
+.ikone-gross { flex: none; stroke-width: 1.25; color: var(--ink); }
+
+.merkmale {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  margin-bottom: 30px;
+}
+.merkmal {
+  background: var(--panel);
+  padding: 30px 26px 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+}
+.merkmal h3 {
+  font: 300 17px/1.25 var(--schrift);
+  letter-spacing: -0.015em;
+  margin: 0;
+  color: var(--ink);
+}
+.merkmal p {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--ink-dim);
+  flex: 1;
+}
+.merkmal button { margin-top: 4px; }
 
 /* ------------------------------------------------------------------ drawer */
 
@@ -281,16 +353,20 @@ h2 { font: 400 17px/1.25 inherit; letter-spacing: -0.015em; margin: 0; }
 button {
   background: transparent;
   border: 1px solid var(--border);
-  border-radius: 0;
+  /* Modest, not rounded. Two pixels reads as manufactured rather than as a pill. */
+  border-radius: 2px;
   color: var(--ink-dim);
-  padding: 8px 14px;
-  font: 400 12px/1.2 inherit;
-  letter-spacing: 0.02em;
+  padding: 10px 18px;
+  font: 600 12px/1.2 var(--schrift);
+  letter-spacing: 0.03em;
   cursor: pointer;
   text-align: left;
-  transition: border-color 140ms linear, color 140ms linear;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  transition: border-color 140ms linear, color 140ms linear, background-color 140ms linear;
 }
-button:hover { border-color: var(--border-strong); color: var(--ink); }
+button:hover { border-color: var(--ink); color: var(--ink); }
 button.aktiv { border-color: var(--accent); color: var(--accent); }
 button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
@@ -428,12 +504,17 @@ button.klein { padding: 5px 10px; font-size: 11px; }
 }
 
 .hero-marke {
+  display: flex;
+  align-items: center;
+  gap: 9px;
   font-size: 10px;
+  font-weight: 600;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--accent);
-  margin-bottom: 12px;
+  margin-bottom: 20px;
 }
+.hero-kopf .ikone-gross { margin-bottom: 18px; display: block; }
 .hero-name { font: 300 clamp(24px, 3.4vw, 38px)/1.06 inherit; letter-spacing: -0.028em; margin: 0; }
 .hero-spec { color: var(--ink-dim); font-size: 13px; margin: 14px 0 0; }
 .hero-haendler { color: var(--ink-faint); font-size: 12px; margin: 4px 0 0; }
@@ -480,10 +561,17 @@ button.klein { padding: 5px 10px; font-size: 11px; }
 .chat-verlauf { padding: 18px 20px; max-height: 42vh; overflow-y: auto; }
 
 .chat-leer { padding: 4px 0 8px; }
+/* These are sentences the user might say, not labels. Semibold is the weight for an
+   instruction; setting it on a full sentence makes the panel shout. */
 .chat-leer .knopfreihe button {
   white-space: normal;
-  line-height: 1.5;
-  padding: 11px 14px;
+  line-height: 1.55;
+  padding: 13px 16px;
+  font-weight: 400;
+  letter-spacing: 0;
+  font-size: 13px;
+  display: block;
+  text-align: left;
 }
 
 .blase + .blase { margin-top: 18px; }

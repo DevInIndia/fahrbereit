@@ -4,6 +4,16 @@ import { LangContext, fahrbereitCatalog } from "./a2ui/catalog";
 import { AppFrame } from "./AppFrame";
 import { Chat, type ChatTurn } from "./Chat";
 import { LANGS, type Lang, t } from "./i18n";
+import {
+  AutoMarke,
+  ClipboardList,
+  Languages,
+  Moon,
+  NAV_GROESSE,
+  Receipt,
+  SlidersHorizontal,
+  Sun,
+} from "./icons";
 
 const DIMENSIONEN = [
   "preis_spielraum",
@@ -145,10 +155,34 @@ export default function App() {
     setProtokoll((p) => [...p, `${tool} -> ${result}`.slice(0, 240)]);
   }, []);
 
-  // Every A2UI message, from the stream or from a persona shortcut, lands here and
-  // is applied immediately. No React state in the path, so nothing is batched away.
+  /**
+   * Every A2UI message, from the stream or from a persona shortcut, lands here and
+   * is applied immediately. No React state in the path, so nothing is batched away.
+   *
+   * `createSurface` is dropped for a surface that already exists. The server sends a
+   * complete, self contained batch every time, which is correct on the wire and is
+   * what lets a client connect mid conversation. The renderer, though, treats a
+   * second `createSurface` for a live surface as a no-op for the whole batch, so the
+   * `updateComponents` behind it was silently discarded: picking a second persona
+   * fetched new data, applied none of it, and left the first persona's cards on
+   * screen looking like a considered answer.
+   *
+   * Filtering here rather than on the server keeps the wire format untouched and
+   * keeps every batch replayable from cold.
+   */
+  const flaechen = useRef<Set<string>>(new Set());
   const onSurface = useCallback((msgs: Record<string, unknown>[]) => {
-    if (msgs && msgs.length) anwenden.current?.(msgs);
+    if (!msgs || !msgs.length) return;
+
+    const anzuwenden = msgs.filter((m) => {
+      const erstellen = m.createSurface as { surfaceId?: string } | undefined;
+      if (!erstellen?.surfaceId) return true;
+      if (flaechen.current.has(erstellen.surfaceId)) return false;
+      flaechen.current.add(erstellen.surfaceId);
+      return true;
+    });
+
+    if (anzuwenden.length) anwenden.current?.(anzuwenden);
   }, []);
 
   const bridgeBereit = useCallback((apply: (m: Record<string, unknown>[]) => void) => {
@@ -267,13 +301,14 @@ export default function App() {
 
           <div className="kopf-rechts">
             <div className="segment" role="group" aria-label={t("sprache", lang)}>
-              {LANGS.map((l) => (
+              {LANGS.map((l, i) => (
                 <button
                   key={l}
                   className={l === lang ? "aktiv" : ""}
                   onClick={() => setLang(l)}
                   aria-pressed={l === lang}
                 >
+                  {i === 0 && <Languages size={16} className="ikone" />}
                   {l === "de" ? "Deutsch" : "English"}
                 </button>
               ))}
@@ -286,6 +321,11 @@ export default function App() {
                   onClick={() => setTheme(d)}
                   aria-pressed={d === theme}
                 >
+                  {d === "light" ? (
+                    <Sun size={16} className="ikone" />
+                  ) : (
+                    <Moon size={16} className="ikone" />
+                  )}
                   {t(d === "light" ? "hell" : "dunkel", lang)}
                 </button>
               ))}
@@ -297,13 +337,20 @@ export default function App() {
       <nav className="app-nav">
         <div className="app-nav-inner">
           <div className="nav-gruppe">
-            {(["katalog", "formular", "kasse"] as Schritt[]).map((s) => (
+            {(
+              [
+                ["katalog", AutoMarke],
+                ["formular", ClipboardList],
+                ["kasse", Receipt],
+              ] as [Schritt, typeof ClipboardList][]
+            ).map(([s, Ikone]) => (
               <button
                 key={s}
                 className={`nav-tab ${s === schritt ? "aktiv" : ""}`}
                 onClick={() => setSchritt(s)}
                 aria-current={s === schritt ? "page" : undefined}
               >
+                <Ikone size={NAV_GROESSE} className="ikone" />
                 {t(s, lang)}
               </button>
             ))}
@@ -330,7 +377,10 @@ export default function App() {
 
       <div className="shell">
         <details className="drawer">
-          <summary>{t("einstellungen", lang)}</summary>
+          <summary>
+            <SlidersHorizontal size={NAV_GROESSE} className="ikone" />
+            {t("einstellungen", lang)}
+          </summary>
           <div className="drawer-inhalt">
             <section className="panel">
               <div className="eyebrow">{t("gewichtung", lang)}</div>

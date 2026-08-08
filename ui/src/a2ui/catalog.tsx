@@ -10,6 +10,13 @@ import { createContext, useContext, useState } from "react";
 import { createCatalog } from "@copilotkit/a2ui-renderer";
 import { fahrbereitDefinitions } from "./definitions";
 import { type Lang, t } from "../i18n";
+import {
+  AutoMarke,
+  EmpfehlungMarke,
+  KARTE_GROESSE,
+  MietwagenMarke,
+  NAV_GROESSE,
+} from "../icons";
 
 /**
  * The renderer's own furniture, table headings and section titles, follows the
@@ -115,8 +122,14 @@ export const fahrbereitCatalog = createCatalog(
               <div className="hero-kopf" onClick={() => setOpen(!open)}>
                 <div>
                   <div className="hero-marke">
+                    <EmpfehlungMarke size={NAV_GROESSE} className="ikone" />
                     {t("empfehlung1", lang)} · {props.kategorie}
                   </div>
+                  {props.istMiete ? (
+                    <MietwagenMarke size={KARTE_GROESSE} className="ikone-gross" />
+                  ) : (
+                    <AutoMarke size={KARTE_GROESSE} className="ikone-gross" />
+                  )}
                   <h1 className="hero-name">{props.bezeichnung}</h1>
                   <p className="hero-spec">{props.eckdaten}</p>
                   <p className="hero-haendler">{props.haendler}</p>
