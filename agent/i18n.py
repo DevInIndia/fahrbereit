@@ -181,6 +181,7 @@ STRINGS: dict[str, dict[str, str]] = {
     "c.kilometerstand": {"de": "Kilometerstand", "en": "Mileage"},
     "c.unfallfrei": {"de": "Unfallfreiheit", "en": "Accident-free"},
     "c.entfernung": {"de": "Entfernung", "en": "Distance"},
+    "c.verfuegbarkeit": {"de": "Verfügbarkeit", "en": "Availability"},
     # composite component names
     "k.Sitzplätze": {"de": "Sitzplätze", "en": "Seats"},
     "k.Kofferraum": {"de": "Kofferraum", "en": "Boot"},

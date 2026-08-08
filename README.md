@@ -239,7 +239,7 @@ mcpapps/          the two MCP App servers
   kasse/          simulated checkout
 ui/               React interface, A2UI catalog, chat
 data/             seeded generator and the committed marketplace
-tests/            234 tests, no API key required
+tests/            266 tests, no API key required
 specs/            spec-kit artifacts: spec, plan, research, data model, tasks
 docs/             spike notes and architecture
 ```
@@ -253,7 +253,7 @@ docs/             spike notes and architecture
 | M-1 | Multistep agent harness | `agent/session.py` (`create_deep_agent`) | `tests/test_agent_loop.py` |
 | M-2 | Intake form MCP App | `mcpapps/formular/server.py` | Rendered `ui://formular/intake.html` |
 | M-3 | Mock checkout MCP App | `mcpapps/kasse/server.py` | `tests/test_kasse.py` |
-| M-4 | A2UI Generative UI (Catalogue & Progress) | `agent/surfaces/katalog.py`, `agent/surfaces/fortschritt.py` | `tests/test_a2ui.py` |
+| M-4 | A2UI Generative UI (Catalogue & Progress) | `agent/surfaces/katalog.py`, `agent/surfaces/fortschritt.py` | `tests/test_a2ui.py` (24 tests: v0.9 wire format, both surfaces, incremental updates) |
 | M-5 | Mocked safe payment | `agent/payment/mock.py` | `tests/test_kasse.py` (24 safety assertions) |
 | M-6 | 250+ listings, 10 categories, 10+ brands | `data/listings.json`, `data/generate.py` | `tests/test_dataset.py` (280 listings) |
 | M-7 | Multistep state persistence | `agent/state.py`, `agent/store.py` | `tests/test_state.py` (survives page reload) |
@@ -360,4 +360,4 @@ its name. Nothing outside that package would change.
 
 ## Status
 
-All ten mandatory hackathon requirements (M-1 to M-10) and both bonus requirements (B-1 Langfuse observability, B-2 persona evaluation harness) are fully built, verified, and passing 234 automated tests with zero external API dependencies.
+All ten mandatory hackathon requirements (M-1 to M-10) and both bonus requirements (B-1 Langfuse observability, B-2 persona evaluation harness) are fully built, verified, and passing 266 automated tests with zero external API dependencies.

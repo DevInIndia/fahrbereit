@@ -185,6 +185,10 @@ INVALIDATION_MAP: dict[str, tuple[str, ...]] = {
     "preferences_soft": ("ranking",),
     "use_case_tags": ("ranking",),
     "target_date": ("availability", "ranking", "order"),
+    # Widens the availability window rather than moving it, so it invalidates the same
+    # artifacts the date itself does, minus the order: shifting by a day or two does
+    # not invalidate a placed order the way changing the date entirely would.
+    "date_flexibility_days": ("availability", "ranking"),
     "use_case_text": (),
 }
 

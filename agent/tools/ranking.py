@@ -23,6 +23,7 @@ came from, is in specs/001-fahrbereit-agent/research.md.
 
 from __future__ import annotations
 
+from datetime import date, timedelta
 from typing import Callable, Iterable, Optional, Sequence
 
 from pydantic import BaseModel, Field
@@ -48,6 +49,7 @@ CONSTRAINT_ORDER: tuple[str, ...] = (
     "umweltplakette",
     "kilometerstand",
     "unfallfrei",
+    "verfuegbarkeit",
     "entfernung",
 )
 
@@ -78,7 +80,8 @@ CONSTRAINT_LABELS: dict[str, str] = {
     key: i18n.t(f"c.{key}", "de")
     for key in (
         "angebotsart", "kategorie", "budget", "getriebe", "kraftstoff", "sitzplaetze",
-        "kofferraum", "umweltplakette", "kilometerstand", "unfallfrei", "entfernung",
+        "kofferraum", "umweltplakette", "kilometerstand", "unfallfrei",
+        "verfuegbarkeit", "entfernung",
     )
 }
 
@@ -254,6 +257,36 @@ class RankingResult(BaseModel):
 # ---------------------------------------------------------------- stage 1
 
 
+def _ist_verfuegbar(listing: Listing, state: InterviewState) -> bool:
+    """Whether this listing can actually be had on the date the user wants it.
+
+    Only rentals carry an availability window, because a car for sale is available
+    when it is sold. A rental is a specific vehicle held for a specific period, so a
+    perfect match that cannot be collected on the day is not a match.
+
+    Date flexibility widens the window symmetrically: someone who can shift by three
+    days should see the offers that are free three days either side. With no target
+    date recorded, nothing is excluded, which keeps the constraint inert rather than
+    guessing on the user's behalf.
+    """
+    ziel = state.target_date.value
+    if ziel is None or listing.listing_type != "miete":
+        return True
+
+    von, bis = listing.verfuegbar_von, listing.verfuegbar_bis
+    if not von or not bis:
+        return True  # an offer that states no window is not one we can rule out
+
+    spielraum = timedelta(days=max(0, state.date_flexibility_days.value or 0))
+    try:
+        fenster_von = date.fromisoformat(von)
+        fenster_bis = date.fromisoformat(bis)
+    except ValueError:
+        return True  # unparseable window, so it cannot be checked, so it cannot fail
+
+    return (fenster_von - spielraum) <= ziel <= (fenster_bis + spielraum)
+
+
 def _fails(listing: Listing, state: InterviewState) -> Optional[str]:
     """The first constraint this listing fails, or None if it survives.
 
@@ -299,6 +332,9 @@ def _fails(listing: Listing, state: InterviewState) -> Optional[str]:
             return "kilometerstand"
         if constraints.unfallfrei_erforderlich and not listing.unfallfrei:
             return "unfallfrei"
+
+    if not _ist_verfuegbar(listing, state):
+        return "verfuegbarkeit"
 
     max_km = (constraints.max_entfernung_km if constraints else None) or (
         location.max_entfernung_km if location else None

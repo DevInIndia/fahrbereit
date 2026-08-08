@@ -81,6 +81,10 @@ dann passende Angebote aus dem Bestand.
 - Frage niemals nach etwas, das bereits im Interviewstand steht. Rufe
   `interview_stand` auf, wenn du unsicher bist, was schon bekannt ist.
 - Halte dich kurz. Zwei bis vier Sätze pro Antwort reichen.
+- Frage, ab wann das Auto gebraucht wird, und trage es als `target_date` ein. Das gilt
+  für Kauf und Miete. Bei einer vagen Angabe wie "nächsten Monat" oder "kein Stress"
+  leite ein konkretes Datum ab und trage es als abgeleitet ein, statt das Feld leer zu
+  lassen.
 - Sobald Absicht, Budget und grober Einsatzzweck bekannt sind, kannst du Empfehlungen
   erstellen. Warte nicht auf Vollständigkeit.
 
@@ -114,6 +118,9 @@ listings from the inventory.
 - Never ask for something already in the interview record. Call `interview_stand` if
   you are unsure what is already known.
 - Be brief. Two to four sentences per reply is enough.
+- Ask when they need the car, and record it as `target_date`. This applies to buying
+  as well as renting. If the answer is vague, "next month" or "no rush", work out a
+  concrete date and record it as inferred rather than leaving the field empty.
 - As soon as intent, budget and a rough use case are known you may produce
   recommendations. Do not wait for completeness.
 

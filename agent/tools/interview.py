@@ -12,6 +12,7 @@ The full detail goes to the interface through the A2UI surface, not through the 
 
 from __future__ import annotations
 
+from datetime import date
 from typing import Optional
 
 from langchain_core.tools import tool
@@ -75,6 +76,8 @@ def interview_merken(
     max_tagessatz_eur: Optional[int] = None,
     jahresfahrleistung_km: Optional[int] = None,
     mietdauer_tage: Optional[int] = None,
+    target_date: Optional[str] = None,
+    date_flexibility_days: Optional[int] = None,
     getriebe: Optional[str] = None,
     kraftstoff: Optional[list[str]] = None,
     min_sitzplaetze: Optional[int] = None,
@@ -94,6 +97,11 @@ def interview_merken(
 
     intent is one of: kauf, miete, unentschieden.
     mietdauer_tage is how many days the car is rented for, and applies to miete only.
+    target_date is when the person wants the car, as YYYY-MM-DD. Applies to both buying
+    and renting. If they say something vague like "next month" or "in the summer", work
+    out a concrete date, pass it, and set herkunft to "abgeleitet" so it is shown as an
+    inference they can correct.
+    date_flexibility_days is how many days either side of that date they can shift.
     getriebe is one of: Schaltgetriebe, Automatik.
     kraftstoff entries: Benzin, Diesel, Elektro, Hybrid, Plug-in-Hybrid.
     umweltplakette is one of: grün, gelb, rot.
@@ -158,6 +166,22 @@ def interview_merken(
     if mietdauer_tage:
         _apply(state, "mietdauer_tage", mietdauer_tage, herkunft, quelle)
         geaendert.append("mietdauer_tage")
+
+    if target_date:
+        try:
+            gewuenscht = date.fromisoformat(target_date.strip())
+        except ValueError:
+            return (
+                f"target_date {target_date!r} ist kein Datum. Erwartet: YYYY-MM-DD."
+            )
+        _apply(state, "target_date", gewuenscht, herkunft, quelle)
+        geaendert.append("target_date")
+
+    if date_flexibility_days is not None:
+        _apply(
+            state, "date_flexibility_days", max(0, date_flexibility_days), herkunft, quelle
+        )
+        geaendert.append("date_flexibility_days")
 
     constraint_felder = {
         "getriebe": getriebe,
@@ -260,6 +284,18 @@ def empfehlungen_erstellen(anzahl: int = 5) -> str:
             source="Standardannahme, keine Mietdauer genannt"
             if lang == "de"
             else "standing assumption, no rental duration stated",
+        )
+
+    # The brief names the target date as one of the four things the interview must
+    # establish, so it must never still be blank once recommendations exist. If the
+    # agent did not get it, the assumption is "as soon as possible" and it is recorded
+    # as DEFAULT, which the panel renders as an assumption rather than as a fact.
+    if not state.target_date.is_set:
+        state.target_date = state.target_date.assume(
+            date.today(),
+            source="kein Termin genannt, schnellstmöglich angenommen"
+            if lang == "de"
+            else "no date stated, assumed as soon as possible",
         )
 
     result = rank(state, limit=max(1, min(anzahl, 8)), tco_fn=tco_for_state, lang=lang)

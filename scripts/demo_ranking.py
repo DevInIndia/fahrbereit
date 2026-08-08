@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from datetime import date
 
 from agent.state import (
     Budget,
@@ -94,6 +95,8 @@ def persona_familie() -> tuple[str, InterviewState]:
             unfallfrei_erforderlich=True, umweltplakette="grün",
         )
     )
+    st.target_date = st.target_date.infer(date(2026, 9, 1), confidence=0.6,
+                                          source="\"bald\", kein festes Datum genannt")
     st.location = st.location.state(Location(plz="80339", ort="München"))
     return "Familie, zwei Kinder, München", st
 
@@ -109,6 +112,7 @@ def persona_pendler() -> tuple[str, InterviewState]:
     st.constraints_hard = st.constraints_hard.state(
         HardConstraints(getriebe="Automatik", umweltplakette="grün", unfallfrei_erforderlich=True)
     )
+    st.target_date = st.target_date.state(date(2026, 8, 24), source="Anfang nächster Woche")
     st.location = st.location.state(Location(plz="10115", ort="Berlin", max_entfernung_km=300))
     return "Pendler, 22.000 km im Jahr, Berlin", st
 
@@ -120,10 +124,12 @@ def persona_umzug() -> tuple[str, InterviewState]:
     st.use_case_text = st.use_case_text.state(text)
     st.use_case_tags = st.use_case_tags.infer(tags_from_text(text), confidence=0.9)
     st.budget = st.budget.state(Budget(max_tagessatz_eur=95))
-    st.jahresfahrleistung_km = st.jahresfahrleistung_km.infer(
-        5_000, confidence=0.5, source="einmalige Wochenendmiete"
-    )
+    # A rental is costed over the days it is held, not over an annual mileage, so the
+    # duration is what this persona states and annual mileage does not apply.
+    st.mietdauer_tage = st.mietdauer_tage.state(3, source="für ein Wochenende")
     st.constraints_hard = st.constraints_hard.state(HardConstraints(min_kofferraum_liter=350))
+    st.target_date = st.target_date.state(date(2026, 8, 15), source="am Wochenende")
+    st.date_flexibility_days = st.date_flexibility_days.infer(1, confidence=0.6)
     st.location = st.location.state(Location(plz="20095", ort="Hamburg"))
     return "Umzug am Wochenende, Miete, Hamburg", st
 

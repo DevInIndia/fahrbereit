@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import date
+
 import pytest
 
 from agent.listing import load_listings
@@ -446,6 +448,77 @@ def test_a_purchase_keeps_distance_as_a_soft_weight(listings):
     _, report = hard_filter(family_state(), listings)
     assert report.angenommener_radius_km is None
     assert "entfernung" not in report.ausgeschlossen
+
+
+# ------------------------------------------------------------------ availability
+
+
+def test_a_rental_unavailable_on_the_target_date_is_excluded(listings):
+    """The brief names the target date as an interview field, so it has to do work."""
+    st = rental_state(3)
+    st.location = st.location.state(Location(plz="20095", ort="Hamburg", max_entfernung_km=2000))
+    st.target_date = st.target_date.state(date(2026, 11, 15))
+
+    survivors, report = hard_filter(st, listings)
+    assert report.ausgeschlossen.get("verfuegbarkeit", 0) > 0, (
+        "no listing was excluded on availability, so the constraint is inert"
+    )
+    for listing in survivors:
+        assert listing.verfuegbar_bis is None or (
+            date.fromisoformat(listing.verfuegbar_bis) >= date(2026, 11, 15)
+        )
+
+
+def test_a_date_before_every_window_leaves_no_rental(listings):
+    st = rental_state(3)
+    st.target_date = st.target_date.state(date(2026, 1, 1))
+    survivors, report = hard_filter(st, listings)
+    assert survivors == []
+    assert report.ausgeschlossen["verfuegbarkeit"] > 0
+
+
+def test_flexibility_widens_the_window_on_both_sides(listings):
+    """Someone who can shift by a few days should see the offers that allows."""
+    st = rental_state(3)
+    st.location = st.location.state(Location(plz="20095", ort="Hamburg", max_entfernung_km=2000))
+    st.target_date = st.target_date.state(date(2026, 7, 30))  # two days before every window
+
+    strict, _ = hard_filter(st, listings)
+    st.date_flexibility_days = st.date_flexibility_days.state(3)
+    lenient, _ = hard_filter(st, listings)
+
+    assert len(lenient) > len(strict)
+
+
+def test_a_purchase_is_never_excluded_on_availability(listings):
+    """A car for sale is available when it is sold. Only rentals hold a window."""
+    st = family_state()
+    st.target_date = st.target_date.state(date(2027, 12, 1))
+    _, report = hard_filter(st, listings)
+    assert "verfuegbarkeit" not in report.ausgeschlossen
+
+
+def test_no_target_date_excludes_nothing(listings):
+    """An unasked question must not silently narrow the field."""
+    ohne = hard_filter(rental_state(3), listings)[1]
+    assert "verfuegbarkeit" not in ohne.ausgeschlossen
+
+
+def test_availability_is_reported_in_the_fixed_constraint_order(listings):
+    assert "verfuegbarkeit" in CONSTRAINT_ORDER
+    st = rental_state(3)
+    st.target_date = st.target_date.state(date(2026, 12, 20))
+    _, report = hard_filter(st, listings)
+    reihenfolge = [k for k in CONSTRAINT_ORDER if k in report.ausgeschlossen]
+    assert list(report.ausgeschlossen) == reihenfolge, "drop counts left the fixed order"
+
+
+@pytest.mark.parametrize("lang", ["de", "en"])
+def test_the_availability_constraint_has_a_label_in_both_languages(lang):
+    from agent.tools.ranking import constraint_label
+
+    label = constraint_label("verfuegbarkeit", lang)
+    assert label and label != "c.verfuegbarkeit" and "_" not in label
 
 
 def test_an_unstated_rental_duration_falls_back_to_the_standing_assumption(listings):

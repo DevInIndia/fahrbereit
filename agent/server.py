@@ -15,6 +15,7 @@ driven before the model is in the path.
 from __future__ import annotations
 
 import os
+from datetime import date
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
@@ -85,6 +86,8 @@ def _familie() -> InterviewState:
             unfallfrei_erforderlich=True, umweltplakette="grün",
         )
     )
+    st.target_date = st.target_date.infer(date(2026, 9, 1), confidence=0.6,
+                                          source="\"bald\", kein festes Datum genannt")
     st.location = st.location.state(Location(plz="80339", ort="München"))
     return st
 
@@ -100,6 +103,7 @@ def _pendler() -> InterviewState:
     st.constraints_hard = st.constraints_hard.state(
         HardConstraints(getriebe="Automatik", umweltplakette="grün", unfallfrei_erforderlich=True)
     )
+    st.target_date = st.target_date.state(date(2026, 8, 24), source="Anfang nächster Woche")
     st.location = st.location.state(Location(plz="10115", ort="Berlin", max_entfernung_km=300))
     return st
 
@@ -114,6 +118,8 @@ def _umzug() -> InterviewState:
     # "für ein Wochenende" is the user's own words, so the duration is stated.
     st.mietdauer_tage = st.mietdauer_tage.state(3, source="für ein Wochenende")
     st.constraints_hard = st.constraints_hard.state(HardConstraints(min_kofferraum_liter=350))
+    st.target_date = st.target_date.state(date(2026, 8, 15), source="am Wochenende")
+    st.date_flexibility_days = st.date_flexibility_days.infer(1, confidence=0.6)
     st.location = st.location.state(Location(plz="20095", ort="Hamburg"))
     return st
 
@@ -208,6 +214,13 @@ def gewichte(req: WeightRequest) -> dict[str, Any]:
     return {"messages": build_weight_update(result, lang), "lang": lang}
 
 
+def _tage(anzahl: int, lang: str) -> str:
+    """Day or days. Both languages inflect, and "1 days" reads as a bug to a user."""
+    if lang == "de":
+        return "Tag" if anzahl == 1 else "Tage"
+    return "day" if anzahl == 1 else "days"
+
+
 def _interview_payload(
     state: InterviewState, lang: str = "de"
 ) -> list[dict[str, Any]]:
@@ -259,8 +272,12 @@ def _interview_payload(
         if name == "jahresfahrleistung_km":
             return f"{i18n.fmt_int(value, norm)} km"
         if name == "mietdauer_tage":
-            einheit = "Tage" if norm == "de" else "days"
-            return f"{i18n.fmt_int(value, norm)} {einheit}"
+            return f"{i18n.fmt_int(value, norm)} {_tage(value, norm)}"
+        if name == "target_date":
+            # German writes the day first. An ISO string is an internal format.
+            return value.strftime("%d.%m.%Y" if norm == "de" else "%d %b %Y")
+        if name == "date_flexibility_days":
+            return f"+/- {i18n.fmt_int(value, norm)} {_tage(value, norm)}"
         if isinstance(value, int):
             return i18n.fmt_int(value, norm)
         return str(getattr(value, "value", value))
