@@ -441,7 +441,35 @@ def app_bridge(call: BridgeCall) -> dict[str, Any]:
         raise HTTPException(404, f"Unbekanntes Werkzeug {call.tool!r}") from None
 
 
+class LiveMarketCheckRequest(BaseModel):
+    marke: str
+    modell: str
+    variante: str
+    baujahr: int | None = None
+    kilometerstand_km: int | None = None
+    preis_eur: int
+
+
+@app.post("/api/live-market-check")
+def live_market_check(req: LiveMarketCheckRequest) -> dict[str, Any]:
+    """Isolated live market check using Gemini Search Grounding.
+
+    Display-only validation. Does not affect ranking scores.
+    """
+    from agent.live_check import perform_live_market_check
+
+    return perform_live_market_check(
+        req.marke,
+        req.modell,
+        req.variante,
+        req.baujahr,
+        req.kilometerstand_km,
+        req.preis_eur,
+    )
+
+
 if __name__ == "__main__":
     import uvicorn
 
     uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
+
