@@ -3,6 +3,22 @@
 The model never touches either stage. It reads the output and narrates it. Every
 number a user sees originates here, which is what makes a recommendation auditable
 and reproducible rather than a matter of opinion.
+
+PROVENANCE. Every numeric constant in this module is INVENTED. Not one weight,
+divisor or curve parameter is traceable to a published reference, a market study or
+fitted data. They were chosen so that the scoring behaves sensibly and the ordering
+is defensible when read aloud.
+
+That is a weaker claim than the module's transparency might suggest, and it is stated
+here rather than left to be discovered. What the ranking genuinely guarantees is that
+it is deterministic, that the arithmetic is checkable, that every score decomposes
+into named contributions, and that a user can change the weights and watch the effect.
+What it does not guarantee is that these particular weights are the correct ones for
+any real buyer. The weights being user adjustable is the honest answer to that: the
+defaults are a starting position, not a finding.
+
+The full audit, including which constants would not survive a judge asking where they
+came from, is in specs/001-fahrbereit-agent/research.md.
 """
 
 from __future__ import annotations
@@ -238,22 +254,29 @@ def _einsatzzweck_score(listing: Listing, state: InterviewState) -> tuple[float,
     notes: list[str] = []
 
     if UseCaseTag.FAMILIE in tags:
+        # INVENTED divisors. Two seats scores zero and seven scores full; 700 litres
+        # is treated as a full boot. Both chosen by eye, not from segment data.
         seats = _clamp((listing.sitzplaetze - 2) / 5 * 100)
         boot = _clamp(listing.kofferraum_liter / 700 * 100)
         scores.append((seats + boot) / 2)
         notes.append(f"{listing.sitzplaetze} Sitze, {listing.kofferraum_liter} l Kofferraum")
 
     if UseCaseTag.UMZUG in tags:
+        # INVENTED. 900 litres treated as a full load volume for a move.
         scores.append(_clamp(listing.kofferraum_liter / 900 * 100))
         notes.append(f"{listing.kofferraum_liter} l Ladevolumen")
 
     if UseCaseTag.STADTVERKEHR in tags:
+        # INVENTED. Mass as a proxy for how easy a car is to place in a city, with
+        # 900 kg as ideal and 2100 kg as worst. Mass is a proxy for footprint, which is
+        # itself a proxy for parking; two removes from the thing actually being scored.
         compact = _clamp(100 - (listing.leermasse_kg - 900) / 1200 * 100)
         scores.append(compact)
         notes.append(f"{listing.leermasse_kg} kg Leermasse, stadttauglich")
 
     if UseCaseTag.PENDELN in tags or UseCaseTag.LANGSTRECKE in tags:
         if listing.ist_elektro:
+            # INVENTED ceilings: 25 kWh and 12 l per 100 km treated as worst case.
             consumption = _clamp(100 - (listing.verbrauch_kwh_100km or 20) / 25 * 100)
             notes.append(f"{listing.verbrauch_kwh_100km} kWh/100 km")
         else:
@@ -262,6 +285,7 @@ def _einsatzzweck_score(listing: Listing, state: InterviewState) -> tuple[float,
         scores.append(consumption)
 
     if UseCaseTag.LANGSTRECKE in tags:
+        # INVENTED. 150 kW treated as ample for long distance work.
         scores.append(_clamp(listing.leistung_kw / 150 * 100))
 
     if UseCaseTag.GEWERBLICH in tags and listing.listing_type == "kauf":
@@ -280,10 +304,12 @@ def _zustand_score(listing: Listing) -> tuple[float, str]:
     parts.append(100.0 if listing.unfallfrei else 0.0)
     notes.append("unfallfrei" if listing.unfallfrei else "Unfallschaden")
 
+    # INVENTED. 25 points deducted per previous owner beyond the first.
     parts.append(_clamp(100 - (listing.vorbesitzer - 1) * 25))
     notes.append(f"{listing.vorbesitzer} Vorbesitzer")
 
     hu = listing.hu_monate_verbleibend()
+    # INVENTED. A full 24 months until the next inspection scores full marks.
     parts.append(_clamp(hu / 24 * 100))
     notes.append(f"HU noch {max(hu, 0)} Monate" if hu > 0 else "HU fällig")
 

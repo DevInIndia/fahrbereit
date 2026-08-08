@@ -417,6 +417,108 @@ maintenance and residual value are segment averages, presented as estimates and
 labelled as such in the interface. They are not quotations and must never be rendered
 as though they were.
 
+## Audit 2026-08-08: provenance of every hardcoded constant
+
+Written so that the honest answer to "where did this number come from" is already on
+record before anyone asks. Three grades are used, and they are marked in the source
+as well as here.
+
+- **SOURCED**, traceable to a published reference, cited
+- **APPROX**, approximates a real world level from memory, not looked up
+- **INVENTED**, chosen to make the model behave sensibly, no external basis
+
+### Summary
+
+| Area | Grade |
+|---|---|
+| Kfz-Steuer rates, allowances, bands, exemption dates | SOURCED |
+| Electric mass based rate | APPROX, flagged |
+| Fuel and electricity prices | APPROX |
+| Insurance by segment | INVENTED |
+| Maintenance by segment | INVENTED |
+| Residual value curves | INVENTED |
+| Every scoring weight, divisor and curve parameter | INVENTED |
+| Price generation curve | INVENTED |
+| Postal code distance centroids | APPROX |
+
+**One number in the cost of ownership is a fact. Everything else is an estimate.**
+
+### Sourced
+
+| Constant | Value | Represents | Source |
+|---|---|---|---|
+| `HUBRAUM_SATZ` petrol | 2.00 EUR | Per started 100 ccm | Paragraph 9 KraftStG |
+| `HUBRAUM_SATZ` diesel | 9.50 EUR | Per started 100 ccm | Paragraph 9 KraftStG |
+| CO2 allowance | 95 g/km | Free allowance | Paragraph 9 KraftStG |
+| `CO2_BAENDER` | 2.00 / 2.20 / 2.50 / 2.90 / 3.40 / 4.00 | Per gram, by band | Paragraph 9 KraftStG |
+| `ELEKTRO_BEFREIUNG_JAHRE` | 10 | Exemption length | Achtes Gesetz zur Änderung des KraftStG |
+| `ELEKTRO_ZULASSUNG_STICHTAG` | 2030-12-31 | Registration cutoff | Achtes Gesetz, passed 4 Dec 2025 |
+| `ELEKTRO_BEFREIUNG_ENDE` | 2035-12-31 | Absolute exemption cap | Achtes Gesetz |
+| Electric reduction | 50 percent | Reduction after exemption | Paragraph 9 KraftStG |
+| Pre-2021 allowances | 95 / 110 / 120 g/km | By registration era | Paragraph 9 KraftStG |
+
+### Approximated from memory, not looked up
+
+| Constant | Value | Represents | Standing |
+|---|---|---|---|
+| `PREIS_BENZIN_EUR_L` | 1.82 | Petrol, euro per litre | German pump level from memory. Probably within ten percent. Not a dated index reading. |
+| `PREIS_DIESEL_EUR_L` | 1.71 | Diesel, euro per litre | As above. |
+| `PREIS_STROM_EUR_KWH` | 0.39 | Household electricity per kWh | As above. Ignores public charging, which is materially dearer, so electric running costs are optimistic for anyone without a home connection. |
+| `MASSE_STUFEN` | 5.625 / 6.01 / 6.39 per 200 kg | Electric mass tax after exemption | Commonly cited, not confirmed against statute text. Affects only electric cars registered before roughly 2016. |
+| `PLZ2_CENTROIDS`, `PLZ1_CENTROIDS` | 30 coordinate pairs | Postal region centroids | Real city coordinates, approximately placed. Distance is great circle between region centroids, not routed. Resolution is deliberately coarse. |
+
+### Invented, with no external basis
+
+**Cost of ownership.** `VERSICHERUNG_BASIS` runs 380 EUR for a Kleinstwagen to 1,250
+for Oberklasse; `WARTUNG_BASIS` runs 320 to 1,300 on the same segments;
+`RESTWERT_RATE` runs 0.79 to 0.88 annual retention. The ordering across segments is
+defensible in every case. None of the amounts comes from an insurer table, a
+Typklassen listing, a workshop rate card, or a Schwacke or DAT residual value book.
+
+`RESTWERT_RATE` is the one to watch: residual value dominates the five year total for
+anything bought recently, so an error there moves the headline figure more than
+anything else on the page. Also invented: the insurance power surcharge, 35 percent
+per 100 kW above 100 kW; the maintenance age surcharge, 6 percent per year capped at
+15; the high mileage step of 25 percent past 120,000 km; and the electric maintenance
+discount of 28 percent.
+
+**Scoring.** Every constant in `agent/tools/ranking.py` and every weight in
+`agent/state.py` is invented. Base weights, the per tag weight bumps, the seat and
+boot divisors, the 900 to 2100 kg city suitability range, the 25 kWh and 12 l/100 km
+consumption ceilings, the 150 kW long distance reference, the 25 point deduction per
+previous owner, and the 24 month inspection horizon.
+
+Two of these deserve naming because they are weaker than they look. City suitability
+scores mass as a proxy for footprint, which is itself a proxy for how easy a car is to
+park, so it is two removes from the thing being judged. And the per tag weight bumps
+decide how much a stated use case shifts the ranking, which makes them among the most
+consequential numbers in the project despite having no basis at all.
+
+**Price generation.** The residual floor of 0.18, the 0.87 annual decay, the 0.13 per
+100,000 km penalty and the 2,500 EUR floor in `data/generate.py` were tuned by
+comparing output against remembered German market levels. This is calibration by eye.
+
+### What the ranking does and does not claim
+
+It is worth separating these, because the invented weights do not undermine
+everything.
+
+**Genuinely true.** Ranking is deterministic and reproduces exactly. The arithmetic is
+checkable and tested: contributions sum to the total, drop counts sum to the number
+excluded. Every score decomposes into named dimensions each carrying the fact it came
+from. Explanations are generated from score data, never independently. Weights are
+visible and adjustable, so a user who disagrees can change them and watch the list
+move. Hard constraints are never violated.
+
+**Not claimed.** That these particular weights are correct for any real buyer. That
+the insurance, maintenance or residual figures would match a real quotation. That the
+absolute cost of ownership total is accurate rather than merely consistent between
+listings.
+
+The defence is not that the numbers are right. It is that they are visible, adjustable,
+and consistently applied, which is a genuine improvement on sorting by price and a
+weaker thing than a valuation model. Both halves of that go in the README.
+
 ## Open questions carried into the spike
 
 Two integration paths in the chosen stack are unverified. Neither can be settled by

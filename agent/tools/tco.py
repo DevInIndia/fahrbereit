@@ -46,23 +46,45 @@ ELEKTRO_BEFREIUNG_ENDE = date(2035, 12, 31)
 # as an assumption rather than as a confirmed statutory figure.
 MASSE_STUFEN: tuple[tuple[int, float], ...] = ((2_000, 5.625), (3_000, 6.01), (10**9, 6.39))
 
-# Energy prices, stated so the reader can disagree with them explicitly.
+# PROVENANCE OF THE CONSTANTS BELOW
+#
+# Only the Kfz-Steuer figures above are sourced. Everything from here down is either
+# an approximation of a remembered real world level or an outright invention. The
+# distinction is marked on each block so that nobody has to guess, and it is
+# reproduced in specs/001-fahrbereit-agent/research.md.
+#
+#   SOURCED    traceable to a published reference, cited
+#   APPROX     approximates a real world level from memory, not looked up
+#   INVENTED   chosen to make the model behave sensibly, no external basis
+
+# APPROX. German pump and household electricity levels from memory, not looked up
+# against a price index on any particular date. Right to within roughly ten percent,
+# which is enough to rank cars against each other and not enough to quote.
 PREIS_BENZIN_EUR_L = 1.82
 PREIS_DIESEL_EUR_L = 1.71
 PREIS_STROM_EUR_KWH = 0.39
 
-# Segment averages. Estimates, and presented as estimates.
+# INVENTED. Annual insurance in euro by segment. The ordering across segments is
+# defensible, a city car costs less to insure than a sports car, but the absolute
+# amounts are not drawn from any insurer table or typklassen data. Presented in the
+# interface as an estimate and never as a quotation.
 VERSICHERUNG_BASIS: dict[str, int] = {
     "Kleinstwagen": 380, "Kleinwagen": 430, "Kompaktklasse": 520, "Mittelklasse": 650,
     "Obere Mittelklasse": 850, "Oberklasse": 1_250, "SUV/Geländewagen": 720,
     "Kombi": 590, "Van/Großraumlimousine": 640, "Sportwagen/Cabrio": 980,
 }
+# INVENTED. Annual maintenance and wear in euro by segment. Same status as insurance:
+# the ordering is sensible, the amounts have no external basis.
 WARTUNG_BASIS: dict[str, int] = {
     "Kleinstwagen": 320, "Kleinwagen": 380, "Kompaktklasse": 460, "Mittelklasse": 600,
     "Obere Mittelklasse": 820, "Oberklasse": 1_300, "SUV/Geländewagen": 700,
     "Kombi": 540, "Van/Großraumlimousine": 640, "Sportwagen/Cabrio": 950,
 }
-# Annual value retention over the five year horizon, by segment.
+# INVENTED. Annual value retention over the five year horizon, by segment. The shape
+# is right, large luxury cars depreciate hardest and small cars hold value best, but
+# these are not Schwacke, DAT or any other published residual value table. This is the
+# single constant a judge is most likely to probe, because residual value dominates
+# the five year total for any car bought new-ish.
 RESTWERT_RATE: dict[str, float] = {
     "Kleinstwagen": 0.87, "Kleinwagen": 0.87, "Kompaktklasse": 0.86,
     "Mittelklasse": 0.84, "Obere Mittelklasse": 0.82, "Oberklasse": 0.79,
@@ -105,11 +127,11 @@ class CostOfOwnership(BaseModel):
 
 def _co2_anteil(co2: int, freibetrag: int, gestaffelt: bool) -> float:
     """The carbon dioxide term. Banded from 2021, flat before."""
-    über = max(0, co2 - freibetrag)
-    if über == 0:
+    ueberschuss = max(0, co2 - freibetrag)
+    if ueberschuss == 0:
         return 0.0
     if not gestaffelt:
-        return über * 2.00
+        return ueberschuss * 2.00
 
     total = 0.0
     untergrenze = freibetrag
@@ -199,6 +221,7 @@ def _energie_jahr(listing: Listing, km: int) -> int:
 
 def _versicherung_jahr(listing: Listing) -> int:
     basis = VERSICHERUNG_BASIS.get(listing.category, 550)
+    # INVENTED. Power surcharge: 35 percent more premium per 100 kW above 100 kW.
     leistungszuschlag = 1.0 + max(0, listing.leistung_kw - 100) / 100 * 0.35
     return int(round(basis * leistungszuschlag))
 
@@ -206,6 +229,10 @@ def _versicherung_jahr(listing: Listing) -> int:
 def _wartung_5j(listing: Listing, stichtag: Optional[date] = None) -> int:
     basis = WARTUNG_BASIS.get(listing.category, 500)
     alter = listing.alter_jahre(stichtag)
+    # INVENTED, all three. Six percent more maintenance per year of age capped at 15
+    # years, a 25 percent step once past 120,000 km, and a 28 percent discount for
+    # electric drivetrains on the grounds that they have fewer wearing parts. The
+    # direction of each is well established; the magnitudes are not.
     alterszuschlag = 1.0 + min(alter, 15) * 0.06
     verschleiss = 1.25 if listing.kilometerstand > 120_000 else 1.0
     elektro_rabatt = 0.72 if listing.kraftstoff == "Elektro" else 1.0

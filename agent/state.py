@@ -154,8 +154,11 @@ INVALIDATION_MAP: dict[str, tuple[str, ...]] = {
     "use_case_text": (),
 }
 
-# Weight presets per use case tag, merged and normalised. Chosen so the emphasis is
-# defensible out loud: a commuter cares about running cost, a family about fit.
+# INVENTED. Weight presets per use case tag, merged into the base weights and then
+# normalised. Chosen so the emphasis is defensible when read aloud, a commuter
+# cares about running cost and a family about fit, but not fitted to any survey,
+# purchase data or user research. These are a starting position for the user to
+# adjust, not a finding. See specs/001-fahrbereit-agent/research.md.
 TAG_WEIGHTS: dict[UseCaseTag, dict[Dimension, float]] = {
     UseCaseTag.PENDELN: {Dimension.GESAMTKOSTEN: 0.35, Dimension.PREIS_SPIELRAUM: 0.20},
     UseCaseTag.FAMILIE: {Dimension.EINSATZZWECK: 0.30, Dimension.ZUSTAND: 0.20},
@@ -166,6 +169,7 @@ TAG_WEIGHTS: dict[UseCaseTag, dict[Dimension, float]] = {
     UseCaseTag.GEWERBLICH: {Dimension.GESAMTKOSTEN: 0.30, Dimension.ZUSTAND: 0.25},
 }
 
+# INVENTED. The neutral weighting used before any use case tag is known.
 BASE_WEIGHTS: dict[Dimension, float] = {
     Dimension.PREIS_SPIELRAUM: 0.20,
     Dimension.GESAMTKOSTEN: 0.25,
