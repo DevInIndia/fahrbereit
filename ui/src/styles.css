@@ -964,13 +964,20 @@ button.klein { padding: 5px 10px; font-size: 11px; }
 
 .footer-links-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 24px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 36px;
   margin-bottom: 28px;
 }
 
+@media (max-width: 768px) {
+  .footer-links-grid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+}
+
 .footer-spalte .eyebrow {
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .footer-liste {
@@ -981,16 +988,18 @@ button.klein { padding: 5px 10px; font-size: 11px; }
 
 .footer-liste li {
   margin-bottom: 8px;
-  font-size: 12.5px;
+  font-size: 13px;
+  line-height: 1.4;
 }
 
 .footer-liste a {
-  color: var(--accent);
+  color: var(--ink);
   text-decoration: none;
   transition: color 0.15s ease;
 }
 
 .footer-liste a:hover {
+  color: var(--accent);
   text-decoration: underline;
 }
 
@@ -998,8 +1007,11 @@ button.klein { padding: 5px 10px; font-size: 11px; }
   padding-top: 20px;
   border-top: 1px solid var(--border);
   display: flex;
-  justify-content: space-between;
   align-items: center;
+}
+
+.footer-unterzeile p {
+  margin: 0;
 }
 
 @media (prefers-reduced-motion: reduce) {

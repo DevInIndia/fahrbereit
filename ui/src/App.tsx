@@ -369,23 +369,6 @@ export default function App() {
               </button>
             ))}
           </div>
-
-          <div className="nav-gruppe">
-            <span className="nav-gruppe-titel">{t("demoAbkuerzung", lang)}</span>
-            {["familie", "pendler", "umzug"].map((p) => (
-              <button
-                key={p}
-                className={`nav-tab ${p === letztePersona ? "aktiv" : ""}`}
-                onClick={() => {
-                  setLetztePersona(p);
-                  setGewichte(null);
-                  persona(p, null);
-                }}
-              >
-                {t(`persona.${p}`, lang)}
-              </button>
-            ))}
-          </div>
         </div>
       </nav>
 

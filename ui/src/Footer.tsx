@@ -117,9 +117,6 @@ export function Footer({ lang, onPersonaClick }: FooterProps) {
           <p className="dim small">
             © 2026 fahrbereit · Amulate Summer Hackathon 2026 Submission by Shashank Chauhan.
           </p>
-          <p className="dim small">
-            {lang === "de" ? "280 generierte Angebote · 100% simulierte Kasse" : "280 synthetic listings · 100% simulated checkout"}
-          </p>
         </div>
       </div>
     </footer>
