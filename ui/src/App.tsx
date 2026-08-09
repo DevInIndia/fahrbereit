@@ -135,6 +135,14 @@ export default function App() {
     return stored === "en" || stored === "de" ? stored : "en";
   });
   const [theme, setTheme] = useState<Theme>(ersteDarstellung);
+  const surfaceRef = useRef<HTMLDivElement>(null);
+
+  const setSchrittUndScrollen = useCallback((s: Schritt) => {
+    setSchritt(s);
+    setTimeout(() => {
+      surfaceRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
+  }, []);
 
   // The whole theme is CSS variables under [data-theme], so switching is one
   // attribute write. No reload, no re-render of the surfaces, no reflow of the
@@ -351,7 +359,7 @@ export default function App() {
               <button
                 key={s}
                 className={`nav-tab ${s === schritt ? "aktiv" : ""}`}
-                onClick={() => setSchritt(s)}
+                onClick={() => setSchrittUndScrollen(s)}
                 aria-current={s === schritt ? "page" : undefined}
               >
                 <Ikone size={NAV_GROESSE} className="ikone" />
@@ -449,23 +457,25 @@ export default function App() {
 
           <FortschrittSurface />
 
-          {schritt === "katalog" && <Katalog lang={lang} />}
-          {schritt === "formular" && (
-            <AppFrame
-              title={t("anfrageformular", lang)}
-              lang={lang}
-              endpoint={`/api/app/formular?listing_id=FB-00001&intent=${intent}&fahrzeug=${fahrzeug}&lang=${lang}`}
-              onToolResult={onToolResult}
-            />
-          )}
-          {schritt === "kasse" && (
-            <AppFrame
-              title={t("kasseSimuliert", lang)}
-              lang={lang}
-              endpoint={`/api/app/kasse?listing_id=FB-00001&intent=${intent}&betrag_eur=${istMiete ? 147 : 21490}&fahrzeug=${fahrzeug}&lang=${lang}`}
-              onToolResult={onToolResult}
-            />
-          )}
+          <div ref={surfaceRef} style={{ scrollMarginTop: 20 }}>
+            {schritt === "katalog" && <Katalog lang={lang} />}
+            {schritt === "formular" && (
+              <AppFrame
+                title={t("anfrageformular", lang)}
+                lang={lang}
+                endpoint={`/api/app/formular?listing_id=FB-00001&intent=${intent}&fahrzeug=${fahrzeug}&lang=${lang}`}
+                onToolResult={onToolResult}
+              />
+            )}
+            {schritt === "kasse" && (
+              <AppFrame
+                title={t("kasseSimuliert", lang)}
+                lang={lang}
+                endpoint={`/api/app/kasse?listing_id=FB-00001&intent=${intent}&betrag_eur=${istMiete ? 147 : 21490}&fahrzeug=${fahrzeug}&lang=${lang}`}
+                onToolResult={onToolResult}
+              />
+            )}
+          </div>
         </main>
       </div>
     </A2UIProvider>
