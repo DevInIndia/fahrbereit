@@ -12,15 +12,19 @@
  */
 
 import {
+  ArrowRight,
   Check,
   ClipboardList,
+  Cpu,
   Languages,
   LayoutGrid,
   Moon,
   Receipt,
   RotateCcw,
   Send,
+  ShieldCheck,
   SlidersHorizontal,
+  Sparkles,
   Sun,
   type LucideIcon,
 } from "lucide-react";
@@ -30,15 +34,19 @@ export const KARTE_GROESSE = 40;
 export const STRICH = 1.5;
 
 export {
+  ArrowRight,
   Check,
   ClipboardList,
+  Cpu,
   Languages,
   LayoutGrid,
   Moon,
   Receipt,
   RotateCcw,
   Send,
+  ShieldCheck,
   SlidersHorizontal,
+  Sparkles,
   Sun,
   type LucideIcon,
 };

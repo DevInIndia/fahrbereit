@@ -3,6 +3,7 @@ import { A2UIProvider, A2UIRenderer, useA2UI } from "@copilotkit/a2ui-renderer";
 import { LangContext, fahrbereitCatalog } from "./a2ui/catalog";
 import { AppFrame } from "./AppFrame";
 import { Chat, type ChatTurn } from "./Chat";
+import { IntroLanding } from "./IntroLanding";
 import { LANGS, type Lang, t } from "./i18n";
 import {
   AutoMarke,
@@ -446,6 +447,18 @@ export default function App() {
         </details>
 
         <main className="haupt">
+          <IntroLanding
+            lang={lang}
+            onStartClick={() => {
+              const el = document.querySelector(".chat-eingabe-text") as HTMLTextAreaElement;
+              el?.focus();
+              el?.scrollIntoView({ behavior: "smooth", block: "center" });
+            }}
+            onExploreClick={() => {
+              setSchrittUndScrollen("katalog");
+            }}
+          />
+
           <Chat
             sessionId={sessionId}
             lang={lang}
