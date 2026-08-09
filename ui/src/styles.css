@@ -80,23 +80,14 @@
 html, body, #root { height: 100%; margin: 0; }
 
 /*
- * BMW Type Next is named first and never shipped. It is BMW's licensed typeface, so
- * bundling it would be exactly the copying we are told not to do. Naming it only
- * asks the operating system whether it is already installed.
+ * Inter is our primary typography font. It is a neo-grotesque typeface with genuine
+ * Light (300), Regular (400), and SemiBold (600) cuts, providing a clean, modern
+ * automotive editorial aesthetic.
  *
- * Inter is the one that actually renders, and it is bundled rather than left to the
- * system. The reason is specific: this design puts real weight on 300 for display
- * type, and the obvious system fallbacks cannot deliver it. Helvetica Neue Light
- * does not exist on Windows at all, Helvetica aliases to Arial there, and Arial has
- * no Light. So on Windows the whole thin display treatment was silently rendering
- * at regular weight, which is most of the character of the reference gone.
- *
- * Inter is a neo-grotesque with genuine Light, Regular and SemiBold cuts, and it is
- * under the SIL Open Font Licence, so shipping it is permitted. Loaded in main.tsx.
+ * Bundled offline via @fontsource/inter under SIL Open Font Licence in main.tsx.
  */
 :root {
-  --schrift: "BMW Type Next", "BMWTypeNext", "Inter", "Helvetica Neue",
-             Helvetica, Arial, sans-serif;
+  --schrift: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
 body {
