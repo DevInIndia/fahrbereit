@@ -57,3 +57,10 @@ backend.err.log
 *.log
 *.tmp
 *.bak
+
+# Presentation & context docs (local only)
+docs/DECK_CONTEXT.md
+docs/TECHNICAL_ONBOARDING.md
+docs/slide_deck_outline.md
+docs/video_demo_script.md
+
