@@ -93,7 +93,7 @@ export function Chat({
             <div className="blase-rolle">
               {turn.rolle === "user" ? t("sie", lang) : "fahrbereit"}
             </div>
-            <div className="blase-text">{turn.text}</div>
+            <div className="blase-text">{renderFormattedText(turn.text)}</div>
             {turn.werkzeuge && turn.werkzeuge.length > 0 && (
               <div className="werkzeuge">
                 {turn.werkzeuge.map((w, k) => (
@@ -146,4 +146,67 @@ export function Chat({
       </div>
     </section>
   );
+}
+
+function renderFormattedText(text: string) {
+  if (!text) return null;
+
+  // Split into paragraphs
+  const paragraphs = text.split(/\n\n+/);
+
+  return (
+    <>
+      {paragraphs.map((p, pIdx) => {
+        const lines = p.split("\n").filter((l) => l.trim().length > 0);
+
+        // Check if paragraph is a list
+        const isList = lines.length > 0 && lines.every((line) => /^\s*([-*•]|\d+\.)\s+/.test(line.trim()));
+
+        if (isList) {
+          return (
+            <ul key={pIdx} className="chat-liste">
+              {lines.map((line, lIdx) => {
+                const cleanLine = line.replace(/^\s*([-*•]|\d+\.)\s+/, "");
+                return <li key={lIdx}>{parseInlineMarkdown(cleanLine)}</li>;
+              })}
+            </ul>
+          );
+        }
+
+        return (
+          <div key={pIdx} className="chat-absatz">
+            {lines.map((line, lIdx) => (
+              <span key={lIdx} style={{ display: "block" }}>
+                {parseInlineMarkdown(line)}
+              </span>
+            ))}
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
+function parseInlineMarkdown(text: string): React.ReactNode {
+  if (!text) return text;
+
+  // Parse **bold** and *italic*
+  const parts: React.ReactNode[] = [];
+  const boldRegex = /(\*\*|__)(.*?)\1/g;
+  let lastIdx = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = boldRegex.exec(text)) !== null) {
+    if (match.index > lastIdx) {
+      parts.push(text.substring(lastIdx, match.index));
+    }
+    parts.push(<strong key={match.index}>{match[2]}</strong>);
+    lastIdx = match.index + match[0].length;
+  }
+
+  if (lastIdx < text.length) {
+    parts.push(text.substring(lastIdx));
+  }
+
+  return parts.length > 0 ? parts : text;
 }

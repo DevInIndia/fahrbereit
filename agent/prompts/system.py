@@ -159,10 +159,10 @@ bekommt eine Familie einen Kleinstwagen vorgeschlagen, und das ist sichtbar fals
 """
 
 LANGUAGE_DE = """
-## Sprache
+## Sprache & Formatierung
 
 Antworte auf Deutsch. Fahrzeugbezeichnungen, Händlernamen und Ortsnamen bleiben
-unverändert, so wie das Werkzeug sie liefert.
+unverändert, so wie das Werkzeug sie liefert. Verwende eine saubere, gut lesbare Form.
 """
 
 INFERENCE_EN = """
