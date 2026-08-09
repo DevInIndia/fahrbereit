@@ -48,6 +48,9 @@ evals/results/*.md
 .DS_Store
 Thumbs.db
 
+# Local demo runner. A personal helper for recording, not part of the deliverable.
+demo.ps1
+
 # Local run logs & temporary files
 backend.log
 backend.err.log
