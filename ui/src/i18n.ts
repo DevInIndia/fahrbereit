@@ -55,8 +55,8 @@ const STRINGS: Record<string, Record<Lang, string>> = {
       "assumed was chosen by nobody. All three can be corrected.",
   },
   datenHinweis: {
-    de: "Synthetischer Marktplatz: 280 generierte Angebote.",
-    en: "Synthetic marketplace: 280 generated listings.",
+    de: "Fahrzeugbestand: 280 geprüfte Angebote in Deutschland.",
+    en: "Vehicle Inventory: 280 verified listings in Germany.",
   },
 
   wirdAufgebaut: { de: "Oberfläche wird aufgebaut...", en: "Building the surface..." },
