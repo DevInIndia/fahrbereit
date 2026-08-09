@@ -52,42 +52,102 @@ Most AI recommendation engines let the Language Model rank items or estimate cos
 
 ## 🏗️ System Architecture & Stack
 
-### Containerized Architecture
+### Container Topology & Data Flow
 
 ```
-                                 [ BROWSER ]
-                                      |
-                            http://localhost:8080
-                                      |
-                     +----------------v----------------+
-                     |          CONTAINER 1: ui        |
-                     |  nginx: serves React 19 bundle, |
-                     |      proxies /api requests      |
-                     +----------------+----------------+
-                                      | /api
-                     +----------------v----------------+
-                     |       CONTAINER 2: backend      |
-                     |  Agent Loop (DeepAgents/LangGraph)|
-                     |  Deterministic Ranking Core     |
-                     +-------+-----------------+-------+
-                             |                 |
-                MCP / HTTP   |                 |   MCP / HTTP
-         +-------------------v--+           +--v-------------------+
-         | CONTAINER 3: formular|           |  CONTAINER 4: kasse  |
-         | MCP App (Port 3001)  |           | MCP App (Port 3002)  |
-         +----------------------+           +----------------------+
++---------------------------------------------------------------------------------------+
+| BROWSER                                                                               |
+|   +---------------+   +-----------------+   +------------------+   +--------------+   |
+|   |     React     |   |  A2UI renderer  |   |  MCP app bridge  |   |  SSE reader  |   |
+|   +---------------+   +-----------------+   +------------------+   +--------------+   |
++------------------------------------------+--------------------------------------------+
+                                           |
+                                           v
++---------------------------------------------------------------------------------------+
+| CONTAINER 1: ui                                                                 :8080 |
+|   nginx, serves the bundle, proxies /api                                              |
++------------------------------------------+--------------------------------------------+
+                                           |
+                                           v ^  A2UI v0.9 over SSE
++------------------------------------------+--------------------------------------------+
+| CONTAINER 2: backend                                                            :8000 |
+|                                                                                       |
+|   +---------------------------------+   +-------------------------+                   |
+|   | Agent loop, DeepAgents+LangGraph|   | 3 tools model may call  |---[MCP/HTTP]----+ |
+|   +---------------------------------+   +-------------------------+                 | |
+|                                                                                     | |
+|   +-----------------------------------------------------------------------------+   | |
+|   | DETERMINISTIC CORE (NO MODEL IN THE PATH)                                   |   | |
+|   |   +------------------+  +-------------------+  +---------------+  +-------+ |   | |
+|   |   | typed state,     |  | hard filter,      |  | weighted score|  | cost  | |   | |
+|   |   | provenance       |  | 12 constraints    |  | 6 dimensions  |  | models| |   | |
+|   |   +------------------+  +-------------------+  +---------------+  +-------+ |   | |
+|   +-----------------------------------------------------------------------------+   | |
++------------------------------------------+----------------------------------+---------+
+                                           |                                  |
+                                           |      +---------------------------v-----+
+                                           |      | CONTAINER 3: formular (MCP :3001)|
+                                           |      +---------------------------------+
+                                           |      | CONTAINER 4: kasse    (MCP :3002)|
+                                           |      +---------------------------------+
+                                           |      | 280 synthetic listings seeded   |
+                                           |      +---------------------------------+
+                                           v
++---------------------------------------------------------------------------------------+
+| Langfuse over OpenTelemetry                                                           |
++---------------------------------------------------------------------------------------+
+| >>> THE MODEL READS THESE NUMBERS. IT NEVER PRODUCES THEM. <<<                         |
++---------------------------------------------------------------------------------------+
 ```
 
-### Microservice & Protocol Overview
+```mermaid
+flowchart TD
+    subgraph BROWSER ["BROWSER"]
+        React["React"] --- A2UI["A2UI renderer"] --- MCPBridge["MCP app bridge"] --- SSEReader["SSE reader"]
+    end
 
-| Layer | Technologies / Protocols | Purpose |
-|---|---|---|
-| **Frontend** | React 19, TypeScript, Vite 7, Lucide Icons | Responsive dark theme UI with A2UI catalogue rendering & SSE progress streaming |
-| **Protocols** | A2UI v0.9, Model Context Protocol 2.0, Server-Sent Events | Standardized Generative UI payloads and remote MCP App microservice communication |
-| **Agent Core** | LangChain DeepAgents, LangGraph, Gemini 2.5 Flash, Gemma (Eval Judge) | Multi-step conversational agent loop with structured slot filling & tool use |
-| **Backend** | Python 3.12, FastAPI, Pydantic v2 | High-performance REST & SSE streaming server, session store, app bridge |
-| **Ranking Engine** | Pure Python Engine | Deterministic constraint filtering, 6-dimension weighted scoring, German KraftStG tax calculation |
-| **Observability** | Langfuse over OpenTelemetry | End-to-end trace collection, tool latency metrics, and prompt token usage |
+    subgraph CONTAINER1 ["CONTAINER 1: ui (:8080)"]
+        Nginx["nginx, serves the bundle, proxies /api"]
+    end
+
+    subgraph CONTAINER2 ["CONTAINER 2: backend (:8000)"]
+        AgentLoop["Agent loop, DeepAgents + LangGraph"]
+        Tools["3 tools the model may call"]
+        
+        subgraph CORE ["DETERMINISTIC CORE, NO MODEL IN THE PATH"]
+            State["typed state, provenance"]
+            Filter["hard filter, 12 constraints"]
+            Score["weighted score, 6 dimensions"]
+            Cost["cost models, ownership + rental"]
+        end
+    end
+
+    subgraph MCPAPPS ["MCP APP CONTAINERS & DATA"]
+        C3["CONTAINER 3: formular (MCP App, :3001)"]
+        C4["CONTAINER 4: kasse (MCP App, :3002)"]
+        Listings["280 synthetic listings seeded, read as input"]
+    end
+
+    subgraph OBS ["OBSERVABILITY"]
+        Langfuse["Langfuse over OpenTelemetry"]
+    end
+
+    BROWSER --> CONTAINER1
+    CONTAINER1 <-->|A2UI v0.9 over SSE| CONTAINER2
+    Tools <-->|MCP / HTTP| MCPAPPS
+    CORE --> OBS
+```
+
+### Technology Stack Breakdown
+
+| Category | Components & Technologies |
+|---|---|
+| **FRONTEND** | `React 19` &nbsp; • &nbsp; `TypeScript` &nbsp; • &nbsp; `Vite 7` |
+| **PROTOCOLS** | `A2UI v0.9` &nbsp; • &nbsp; `Model Context Protocol 2.0` &nbsp; • &nbsp; `Server-Sent Events` |
+| **AGENT** | `LangChain DeepAgents` &nbsp; • &nbsp; `LangGraph` &nbsp; • &nbsp; `Gemini, reasoning` &nbsp; • &nbsp; `Gemma, eval judging` |
+| **BACKEND** | `Python 3.12` &nbsp; • &nbsp; `FastAPI` &nbsp; • &nbsp; `Pydantic v2` |
+| 🟧 **RANKING ENGINE** | **pure Python, no model in the path** &nbsp; • &nbsp; **German cost of ownership, KraftStG exact** |
+| **PLATFORM** | `Docker Compose` &nbsp; • &nbsp; `nginx` &nbsp; • &nbsp; `Langfuse` &nbsp; • &nbsp; `OpenTelemetry` &nbsp; • &nbsp; `spec-kit` |
 
 ---
 
