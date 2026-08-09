@@ -32,7 +32,7 @@ export function IntroLanding({ lang, onStartClick, onExploreClick }: IntroLandin
   useEffect(() => {
     const timer = setInterval(() => {
       setIndex((i) => (i + 1) % HERO_IMAGES.length);
-    }, 5000);
+    }, 8500);
     return () => clearInterval(timer);
   }, []);
 

@@ -4,6 +4,7 @@ import { LangContext, fahrbereitCatalog } from "./a2ui/catalog";
 import { AppFrame } from "./AppFrame";
 import { Chat, type ChatTurn } from "./Chat";
 import { IntroLanding } from "./IntroLanding";
+import { Footer } from "./Footer";
 import { LANGS, type Lang, t } from "./i18n";
 import {
   AutoMarke,
@@ -491,6 +492,8 @@ export default function App() {
           </div>
         </main>
       </div>
+
+      <Footer lang={lang} />
     </A2UIProvider>
     </LangContext.Provider>
   );

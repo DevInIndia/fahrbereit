@@ -9,6 +9,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { type Lang, t } from "./i18n";
+import { Send } from "./icons";
 
 export type ChatTurn = {
   rolle: "user" | "agent";
@@ -139,7 +140,8 @@ export function Chat({
           disabled={laeuft}
         />
         <button className="senden" onClick={senden} disabled={laeuft || !entwurf.trim()}>
-          {t("senden", lang)}
+          <span>{t("senden", lang)}</span>
+          <Send size={14} className="ikone" />
         </button>
       </div>
     </section>
