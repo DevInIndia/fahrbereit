@@ -68,7 +68,6 @@ export function Chat({
       <div className="chat-kopf">
         <div className="eyebrow">
           {t("gespraech", lang)}
-          <span className="dim"> · {sessionId}</span>
         </div>
         <button className="klein" onClick={onZuruecksetzen} disabled={laeuft}>
           {t("neuStarten", lang)}
