@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { type Lang, t } from "./i18n";
-import { ArrowRight, Sparkles, ShieldCheck, Cpu } from "./icons";
+import { type Lang } from "./i18n";
+import { ArrowRight, LayoutGrid, ShieldCheck, Cpu } from "./icons";
 
 interface IntroLandingProps {
   lang: Lang;
@@ -50,11 +50,6 @@ export function IntroLanding({ lang, onStartClick, onExploreClick }: IntroLandin
       </div>
 
       <div className="intro-hero-content">
-        <div className="intro-badge">
-          <Sparkles size={14} className="ikone" />
-          <span>{lang === "de" ? "KI-Fahrzeugfinder für Deutschland" : "AI Car Matchmaker for Germany"}</span>
-        </div>
-
         <h1 className="intro-titel">
           {lang === "de"
             ? "Perfekte Autos finden. Transparent & Nachvollziehbar."
@@ -95,7 +90,7 @@ export function IntroLanding({ lang, onStartClick, onExploreClick }: IntroLandin
           </div>
 
           <div className="intro-feature-item">
-            <Sparkles size={18} className="feature-ikone" />
+            <LayoutGrid size={18} className="feature-ikone" />
             <div>
               <strong>{lang === "de" ? "Generative UI (A2UI)" : "Generative UI (A2UI)"}</strong>
               <p>{lang === "de" ? "Echtzeit SSE Streaming-Fortschritt" : "Live SSE progress streaming surface"}</p>
