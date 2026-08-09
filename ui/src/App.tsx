@@ -73,15 +73,17 @@ function A2UIBridge({ onReady }: { onReady: (apply: (m: Record<string, unknown>[
 type Theme = "light" | "dark";
 
 /**
- * Light is the default, and a stored choice wins over it.
+ * Dark is the default, and a stored choice wins over it.
  *
- * Read synchronously during the first render rather than in an effect: applying the
- * theme after mount paints the wrong ground first, and that flash is exactly what a
- * theme toggle is supposed to avoid.
+ * Read synchronously during the first render rather than in an effect, so the
+ * toggle in the header already shows the right side selected on the very first
+ * frame. The ground itself is set even earlier, by the inline script in
+ * index.html, because the CSS :root block is the light theme and waiting for
+ * React would paint one white frame before switching.
  */
 function ersteDarstellung(): Theme {
   const gespeichert = localStorage.getItem("fahrbereit.theme");
-  return gespeichert === "dark" ? "dark" : "light";
+  return gespeichert === "light" ? "light" : "dark";
 }
 
 function Fortschritt({ rows, lang }: { rows: SlotRow[]; lang: Lang }) {

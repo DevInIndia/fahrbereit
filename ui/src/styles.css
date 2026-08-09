@@ -11,7 +11,14 @@
  * column and checked. And motion happens only where it carries a state change, so a
  * bar that moves means the ranking moved.
  *
- * Light is the default. Dark is a considered second, not an inverted first.
+ * Dark is the default. Light is a considered alternative, not an inversion: each
+ * theme has its own accent, border weights and ink ramp, because a palette flipped
+ * by algorithm reads as one.
+ *
+ * The light values live in :root and the dark ones in :root[data-theme="dark"], so
+ * the CSS default and the product default disagree on purpose. index.html sets the
+ * attribute before the first paint to bridge that; without it every load would show
+ * one white frame.
  */
 
 :root {

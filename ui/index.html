@@ -1,15 +1,39 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="theme-color" content="#111111" />
+    <meta name="theme-color" content="#0f1012" />
     <meta
       name="description"
       content="Choose a car to buy or rent in Germany, with a ranking you can check."
     />
     <title>fahrbereit</title>
+    <script>
+      /*
+       * Resolve the theme before the first paint.
+       *
+       * Dark is the default, so it is set on the html element above rather than
+       * left to React. React applies the theme from an effect, which runs after
+       * the first paint: with dark as the default and light as the CSS :root, the
+       * page would show a full white frame and then snap to dark on every single
+       * load. That flash is the whole reason this runs inline and blocking.
+       *
+       * This only has to correct the attribute when a stored preference disagrees
+       * with the default.
+       */
+      (function () {
+        try {
+          var stored = localStorage.getItem("fahrbereit.theme");
+          if (stored === "light" || stored === "dark") {
+            document.documentElement.dataset.theme = stored;
+          }
+        } catch (e) {
+          /* private mode, no storage. The default on the html element stands. */
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
