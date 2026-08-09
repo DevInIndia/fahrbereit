@@ -27,11 +27,26 @@
   --ink-dim: #5a5f68;
   --ink-faint: #8b9099;
 
-  --accent: #0b5ed7;
+  /* The brand orange. Same value as the mark in the header and the favicon, so the
+     tab, the lockup and every active state in the interface are one colour. */
+  --accent: #d8531f;
+  /* The same orange, darkened, for everywhere the accent has to carry contrast:
+     as text on the white ground, and as a fill behind white text.
+
+     Measured, not assumed. The brand value as text on white is 4.06:1, which is
+     under the 4.5 AA floor and would have shipped the hero eyebrow, the active
+     buttons and the "limited by" labels below it. This is 5.49:1 in both roles.
+
+     Borders, bars, dots and focus rings keep the brand value: they are not text
+     and only need 3:1, which the brand orange clears comfortably. So the colour a
+     user reads is accessible and the colour they recognise is exact. */
+  --accent-strong: #b8420f;
   --accent-ink: #ffffff;
   --warn: #9a6a05;
   --warn-edge: #e3cd9a;
-  --critical: #b3402c;
+  /* Pushed away from orange now that the accent is warm. At its old #b3402c a
+     weakness read as an accent, and the two mean opposite things. */
+  --critical: #a01f1f;
 
   --shell-max: 1440px;
   --gap: 28px;
@@ -50,11 +65,14 @@
   --ink-dim: #a2a7b0;
   --ink-faint: #71767f;
 
-  --accent: #6ea8fe;
+  /* The same orange lifted for a dark ground. #d8531f sits at 4.7:1 here, which is
+     legible but muddy; this is 6.7:1 and keeps the hue. */
+  --accent: #f0764a;
+  --accent-strong: #f0764a;
   --accent-ink: #0f1012;
   --warn: #e0b45a;
   --warn-edge: #4a3a1c;
-  --critical: #e8836e;
+  --critical: #f28b8b;
 }
 
 * { box-sizing: border-box; }
@@ -383,14 +401,14 @@ button {
   transition: border-color 140ms linear, color 140ms linear, background-color 140ms linear;
 }
 button:hover { border-color: var(--ink); color: var(--ink); }
-button.aktiv { border-color: var(--accent); color: var(--accent); }
+button.aktiv { border-color: var(--accent); color: var(--accent-strong); }
 button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* One real call to action in the interface. It is the only filled button. */
 button.senden {
   align-self: flex-end;
-  background: var(--accent);
-  border: 1px solid var(--accent);
+  background: var(--accent-strong);
+  border: 1px solid var(--accent-strong);
   color: var(--accent-ink);
   padding: 11px 26px;
   letter-spacing: 0.08em;
@@ -443,7 +461,7 @@ button.klein { padding: 5px 10px; font-size: 11px; }
 .tag.assumed { color: var(--ink-dim); border-style: dashed; }
 .tag.stated { color: var(--ink-faint); }
 
-.limit { color: var(--accent); }
+.limit { color: var(--accent-strong); }
 
 /* ------------------------------------------------------------------ bars */
 
@@ -527,7 +545,7 @@ button.klein { padding: 5px 10px; font-size: 11px; }
   font-weight: 600;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--accent);
+  color: var(--accent-strong);
   margin-bottom: 20px;
 }
 .hero-kopf .ikone-gross { margin-bottom: 18px; display: block; }
@@ -599,7 +617,7 @@ button.klein { padding: 5px 10px; font-size: 11px; }
   color: var(--ink-faint);
   margin-bottom: 5px;
 }
-.blase.agent .blase-rolle { color: var(--accent); }
+.blase.agent .blase-rolle { color: var(--accent-strong); }
 
 .blase-text { white-space: pre-wrap; font-size: 14px; }
 .blase.user .blase-text {
@@ -657,13 +675,13 @@ button.klein { padding: 5px 10px; font-size: 11px; }
 }
 .phase.erledigt .phase-punkt { background: var(--ink-faint); border-color: var(--ink-faint); }
 .phase.aktiv .phase-punkt { background: var(--accent); border-color: var(--accent); }
-.phase.aktiv .phase-label { color: var(--accent); }
+.phase.aktiv .phase-label { color: var(--accent-strong); }
 .phase.erledigt .phase-label { color: var(--ink-dim); }
 
 .phase-linie { flex: 1; height: 1px; background: var(--border); min-width: 18px; margin: 0 12px; }
 
 @keyframes fb-puls { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
-.puls { color: var(--accent); animation: fb-puls 1.1s ease-in-out infinite; }
+.puls { color: var(--accent-strong); animation: fb-puls 1.1s ease-in-out infinite; }
 
 .strom { list-style: none; margin: 0; padding: 0; }
 .strom-schritt {
