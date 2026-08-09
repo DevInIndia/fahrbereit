@@ -493,7 +493,7 @@ export default function App() {
         </main>
       </div>
 
-      <Footer lang={lang} />
+      <Footer lang={lang} onPersonaClick={(p) => persona(p, null)} />
     </A2UIProvider>
     </LangContext.Provider>
   );

@@ -1,7 +1,12 @@
 import { type Lang, t } from "./i18n";
 import { FahrbereitMarke } from "./icons";
 
-export function Footer({ lang }: { lang: Lang }) {
+interface FooterProps {
+  lang: Lang;
+  onPersonaClick?: (name: string) => void;
+}
+
+export function Footer({ lang, onPersonaClick }: FooterProps) {
   return (
     <footer className="app-footer">
       <div className="app-footer-inner">
@@ -14,80 +19,95 @@ export function Footer({ lang }: { lang: Lang }) {
 
           <p className="footer-beschreibung">
             {lang === "de"
-              ? "Ein auditierbarer KI-Fahrzeugfinder für Kauf und Miete in Deutschland. Berechnete Gesamtkosten (TCO), Kfz-Steuer nach §9 KraftStG und A2UI v0.9 Generative UI."
-              : "An auditable AI car matchmaker for buying and renting in Germany. Computed five-year ownership costs, §9 KraftStG vehicle tax, and A2UI v0.9 Generative UI."}
+              ? "Die intelligente Fahrzeugsuche für Kauf und Miete in Deutschland. Auditierbare Berechnungen, transparente Punktebewertung und Fünf-Jahres-Gesamtkosten ohne versteckte Annahmen."
+              : "Intelligent vehicle discovery for purchase and rental in Germany. Auditable calculations, transparent ranking scores, and five-year ownership costs with zero hidden assumptions."}
           </p>
         </div>
 
         <div className="footer-links-grid">
           <div className="footer-spalte">
-            <div className="eyebrow">{lang === "de" ? "Projekt & Repo" : "Project & Code"}</div>
+            <div className="eyebrow">{lang === "de" ? "Fahrzeuge & Suche" : "Vehicles & Marketplace"}</div>
             <ul className="footer-liste">
+              <li>
+                <span className="dim">
+                  {lang === "de" ? "Gebrauchtwagen-Kauf" : "Pre-owned Car Purchase"}
+                </span>
+              </li>
+              <li>
+                <span className="dim">
+                  {lang === "de" ? "Wochenend- & Kurzzeitmiete" : "Weekend & Short-term Rental"}
+                </span>
+              </li>
+              <li>
+                <span className="dim">
+                  {lang === "de" ? "Kombis & Familienautos" : "Estates & Family SUVs"}
+                </span>
+              </li>
+              <li>
+                <span className="dim">
+                  {lang === "de" ? "Elektro- & Hybrid-Flotten" : "Electric & Hybrid Fleets"}
+                </span>
+              </li>
+            </ul>
+          </div>
+
+          <div className="footer-spalte">
+            <div className="eyebrow">{lang === "de" ? "Transparenz & Engine" : "Engine & Transparency"}</div>
+            <ul className="footer-liste">
+              <li>
+                <span className="dim">
+                  {lang === "de" ? "Auditierbare Punkteberechnung" : "Auditable Scoring Engine"}
+                </span>
+              </li>
+              <li>
+                <span className="dim">
+                  {lang === "de" ? "5-Jahre Gesamtkosten (TCO)" : "5-Year Total Ownership Cost (TCO)"}
+                </span>
+              </li>
+              <li>
+                <span className="dim">
+                  {lang === "de" ? "Kfz-Steuer nach §9 KraftStG" : "Motor Vehicle Tax (§9 KraftStG)"}
+                </span>
+              </li>
+              <li>
+                <span className="dim">
+                  {lang === "de" ? "Live-Marktpreis-Prüfung" : "Live Market Price Validation"}
+                </span>
+              </li>
+            </ul>
+          </div>
+
+          <div className="footer-spalte">
+            <div className="eyebrow">{lang === "de" ? "Szenarien & Code" : "Presets & Repository"}</div>
+            <ul className="footer-liste">
+              {onPersonaClick && (
+                <>
+                  <li>
+                    <a href="#katalog" onClick={(e) => { e.preventDefault(); onPersonaClick("familie"); }}>
+                      {lang === "de" ? "Familie mit 2 Kindern" : "Family with 2 Kids"}
+                    </a>
+                  </li>
+                  <li>
+                    <a href="#katalog" onClick={(e) => { e.preventDefault(); onPersonaClick("pendler"); }}>
+                      {lang === "de" ? "Pendler Elektro" : "Electric Commuter"}
+                    </a>
+                  </li>
+                  <li>
+                    <a href="#katalog" onClick={(e) => { e.preventDefault(); onPersonaClick("umzug"); }}>
+                      {lang === "de" ? "Umzug & Transport" : "Moving House Hire"}
+                    </a>
+                  </li>
+                </>
+              )}
               <li>
                 <a
                   href="https://github.com/DevInIndia/fahrbereit"
                   target="_blank"
                   rel="noreferrer"
+                  style={{ color: "var(--accent)", fontWeight: 500 }}
                 >
                   GitHub Repository
                 </a>
-              </li>
-              <li>
-                <a
-                  href="https://github.com/DevInIndia/fahrbereit/blob/main/docs/architecture.md"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Architecture Specification
-                </a>
-              </li>
-              <li>
-                <a
-                  href="https://github.com/DevInIndia/fahrbereit/blob/main/README.md"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Documentation & README
-                </a>
-              </li>
-            </ul>
-          </div>
-
-          <div className="footer-spalte">
-            <div className="eyebrow">{lang === "de" ? "Protokolle & Seams" : "Protocols & Engine"}</div>
-            <ul className="footer-liste">
-              <li>
-                <span className="dim">A2UI v0.9 Generative UI</span>
-              </li>
-              <li>
-                <span className="dim">MCP Apps (Formular & Kasse)</span>
-              </li>
-              <li>
-                <span className="dim">LangGraph State Checkpointer</span>
-              </li>
-              <li>
-                <span className="dim">Langfuse OpenTelemetry Tracing</span>
-              </li>
-            </ul>
-          </div>
-
-          <div className="footer-spalte">
-            <div className="eyebrow">{lang === "de" ? "Transparenz" : "Transparency"}</div>
-            <ul className="footer-liste">
-              <li>
-                <span className="dim">
-                  {lang === "de" ? "280 generierte Listings" : "280 synthetic listings"}
-                </span>
-              </li>
-              <li>
-                <span className="dim">
-                  {lang === "de" ? "100% simulierte Kasse" : "100% simulated checkout"}
-                </span>
-              </li>
-              <li>
-                <span className="dim">
-                  {lang === "de" ? "0 Kreditkarteneingaben" : "Zero credit card inputs"}
-                </span>
               </li>
             </ul>
           </div>
@@ -96,6 +116,9 @@ export function Footer({ lang }: { lang: Lang }) {
         <div className="footer-unterzeile">
           <p className="dim small">
             © 2026 fahrbereit · Amulate Summer Hackathon 2026 Submission by Shashank Chauhan.
+          </p>
+          <p className="dim small">
+            {lang === "de" ? "280 generierte Angebote · 100% simulierte Kasse" : "280 synthetic listings · 100% simulated checkout"}
           </p>
         </div>
       </div>
