@@ -80,15 +80,23 @@
 html, body, #root { height: 100%; margin: 0; }
 
 /*
- * Inter is our primary typography font. It is a neo-grotesque typeface with genuine
- * Light (300), Regular (400), and SemiBold (600) cuts, providing a clean, modern
- * automotive editorial aesthetic.
+ * BMW Type Next is named first and never shipped. It is BMW's licensed typeface, so
+ * bundling it would be exactly the copying we are told not to do. Naming it only
+ * asks the operating system whether it is already installed.
  *
- * Bundled offline via @fontsource/inter under SIL Open Font Licence in main.tsx.
+ * Inter is the one that actually renders, and it is bundled rather than left to the
+ * system. The reason is specific: this design puts real weight on 300 for display
+ * type, and the obvious system fallbacks cannot deliver it. Helvetica Neue Light
+ * does not exist on Windows at all, Helvetica aliases to Arial there, and Arial has
+ * no Light. So on Windows the whole thin display treatment was silently rendering
+ * at regular weight, which is most of the character of the reference gone.
+ *
+ * Inter is a neo-grotesque with genuine Light, Regular and SemiBold cuts, and it is
+ * under the SIL Open Font Licence, so shipping it is permitted. Loaded in main.tsx.
  */
 :root {
-  --schrift: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --titel-schrift: "Outfit", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --schrift: "BMW Type Next", "BMWTypeNext", "Inter", "Helvetica Neue",
+             Helvetica, Arial, sans-serif;
 }
 
 body {
@@ -108,9 +116,7 @@ body {
 
 /* Three weights, used for three jobs and never mixed. Light carries display type,
    regular carries reading text, semibold carries anything that is an instruction. */
-h1 { font: 300 clamp(28px, 3.4vw, 44px)/1.06 var(--titel-schrift); letter-spacing: -0.03em; margin: 0; }
-h2 { font: 300 20px/1.25 var(--titel-schrift); letter-spacing: -0.015em; margin: 0; }
-h3 { font: 400 15px/1.3 var(--titel-schrift); margin: 0; }
+h1 { font: 300 clamp(28px, 3.4vw, 44px)/1.06 var(--schrift); letter-spacing: -0.03em; margin: 0; }
 h2 { font: 300 19px/1.3 var(--schrift); letter-spacing: -0.02em; margin: 0; }
 
 .eyebrow {
@@ -543,7 +549,7 @@ button.klein { padding: 5px 10px; font-size: 11px; }
   margin-bottom: 20px;
 }
 .hero-kopf .ikone-gross { margin-bottom: 18px; display: block; }
-.hero-name { font: 300 clamp(24px, 3.4vw, 38px)/1.06 var(--titel-schrift); letter-spacing: -0.028em; margin: 0; }
+.hero-name { font: 300 clamp(24px, 3.4vw, 38px)/1.06 inherit; letter-spacing: -0.028em; margin: 0; }
 .hero-spec { color: var(--ink-dim); font-size: 13px; margin: 14px 0 0; }
 .hero-haendler { color: var(--ink-faint); font-size: 12px; margin: 4px 0 0; }
 
