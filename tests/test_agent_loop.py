@@ -195,3 +195,27 @@ def test_the_ranking_tool_caps_the_result_size():
     )
     empfehlungen_erstellen.invoke({"anzahl": 99})
     assert len(STORE.artifact("t1", "ranking").empfehlungen) <= 8
+
+
+def test_katalog_endpoint_preserves_active_session_state():
+    from agent.server import WeightRequest, katalog
+
+    # Set up an active rental session in t1
+    interview_merken.invoke(
+        {"herkunft": "gesagt", "intent": "miete", "max_tagessatz_eur": 95}
+    )
+    interview_merken.invoke({"herkunft": "gesagt", "ort": "Hamburg"})
+
+    # Re-rank via katalog endpoint using session_id
+    res = katalog(
+        WeightRequest(session_id="t1", gewichte={"gesamtkosten": 1.0}, lang="de")
+    )
+
+    # Verify interview payload maintains rental & Hamburg state (not Munich purchase persona)
+    interview_payload = res["interview"]
+    keys = {r["slot"]: r["wert"] for r in interview_payload}
+    assert keys.get("intent") in ("miete", "mieten")
+    assert "Hamburg" in str(keys.get("location"))
+
+
+

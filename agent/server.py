@@ -134,7 +134,8 @@ class ChatRequest(BaseModel):
 
 
 class WeightRequest(BaseModel):
-    persona: str = "familie"
+    persona: str | None = None
+    session_id: str | None = None
     gewichte: dict[str, float] | None = None
     limit: int = 6
     lang: str = "de"
@@ -178,11 +179,19 @@ def personas() -> list[dict[str, str]]:
 @app.post("/api/surface/katalog")
 def katalog(req: WeightRequest) -> dict[str, Any]:
     """The A2UI catalogue surface, built from the ranking engine."""
-    factory = PERSONAS.get(req.persona)
-    if factory is None:
-        raise HTTPException(404, f"Unbekannte Persona {req.persona!r}")
+    from agent.store import save_state
 
-    state = factory()
+    if req.session_id:
+        state = state_for(req.session_id)
+    elif req.persona and req.persona in PERSONAS:
+        factory = PERSONAS[req.persona]
+        state = factory()
+    else:
+        factory = PERSONAS.get(req.persona or "familie")
+        if factory is None:
+            raise HTTPException(404, f"Unbekannte Persona {req.persona!r}")
+        state = factory()
+
     if req.gewichte:
         unknown = set(req.gewichte) - {d.value for d in Dimension}
         if unknown:
@@ -192,26 +201,51 @@ def katalog(req: WeightRequest) -> dict[str, Any]:
     lang = i18n.normalise(req.lang)
     result = rank(state, limit=req.limit, tco_fn=tco_for_state, lang=lang)
 
+    if req.session_id:
+        save_state(state)
+        STORE.set_artifact(req.session_id, "ranking", result)
+
+    top_rec = result.empfehlungen[0] if result.empfehlungen else None
     return {
         "messages": build_messages(result, lang=lang),
         "interview": _interview_payload(state, lang),
+        "top_listing_id": top_rec.listing.id if top_rec else "FB-00001",
+        "top_listing_title": top_rec.listing.bezeichnung if top_rec else "",
         "gewichte": result.gewichte,
         "lang": lang,
     }
 
 
+
 @app.post("/api/surface/gewichte")
 def gewichte(req: WeightRequest) -> dict[str, Any]:
     """Weights only, as an incremental data model update. FR-034."""
-    factory = PERSONAS.get(req.persona)
-    if factory is None:
-        raise HTTPException(404, f"Unbekannte Persona {req.persona!r}")
-    state = factory()
+    from agent.store import save_state
+
+    if req.session_id:
+        state = state_for(req.session_id)
+    elif req.persona and req.persona in PERSONAS:
+        factory = PERSONAS[req.persona]
+        state = factory()
+    else:
+        factory = PERSONAS.get(req.persona or "familie")
+        if factory is None:
+            raise HTTPException(404, f"Unbekannte Persona {req.persona!r}")
+        state = factory()
+
     if req.gewichte:
         state.preferences_soft = state.preferences_soft.state(req.gewichte)
+
     lang = i18n.normalise(req.lang)
     result = rank(state, limit=req.limit, tco_fn=tco_for_state, lang=lang)
+
+    if req.session_id:
+        save_state(state)
+        STORE.set_artifact(req.session_id, "ranking", result)
+
     return {"messages": build_weight_update(result, lang), "lang": lang}
+
+
 
 
 def _tage(anzahl: int, lang: str) -> str:

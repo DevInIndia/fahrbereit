@@ -208,6 +208,7 @@ export default function App() {
   // surface live rather than a summary printed afterwards.
   const senden = useCallback(
     async (text: string) => {
+      setLetztePersona(null);
       setVerlauf((v) => [...v, { rolle: "user", text }]);
       setLaeuft(true);
       setSchritt("katalog");
@@ -246,6 +247,8 @@ export default function App() {
 
             if (event === "a2ui" || event === "katalog") {
               onSurface(nutzlast.messages as Record<string, unknown>[]);
+              if (nutzlast.top_listing_id) setTopListingId(nutzlast.top_listing_id as string);
+              if (nutzlast.top_listing_title) setTopListingTitle(nutzlast.top_listing_title as string);
             } else if (event === "fertig") {
               setVerlauf((v) => [
                 ...v,
@@ -267,14 +270,65 @@ export default function App() {
         ]);
       } finally {
         setLaeuft(false);
+        // Refresh interview profile state from the active session
+        fetch("/api/surface/katalog", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ session_id: sessionId, lang }),
+        })
+          .then((r) => r.json())
+          .then((data) => {
+            updateFromKatalogPayload(data);
+          })
+          .catch(() => {});
       }
     },
     [sessionId, lang, onSurface],
   );
 
+  const [letztePersona, setLetztePersona] = useState<string | null>(null);
+  const [topListingId, setTopListingId] = useState<string>("FB-00001");
+  const [topListingTitle, setTopListingTitle] = useState<string>("");
+
+  const updateFromKatalogPayload = useCallback((data: any) => {
+    if (data.interview) {
+      setInterview(data.interview);
+      const intentRow = data.interview.find((r: any) => r.slot === "intent");
+      if (intentRow && intentRow.wert) {
+        const w = String(intentRow.wert).toLowerCase();
+        setIstMiete(w.includes("miet") || w.includes("rent"));
+      }
+    }
+    if (data.top_listing_id) setTopListingId(data.top_listing_id);
+    if (data.top_listing_title) setTopListingTitle(data.top_listing_title);
+  }, []);
+
+  const applyWeighting = useCallback(
+    async (gew: Record<string, number> | null) => {
+      setGewichte(gew);
+      const payload = letztePersona
+        ? { persona: letztePersona, gewichte: gew, limit: 6, lang }
+        : { session_id: sessionId, gewichte: gew, limit: 6, lang };
+      const res = await fetch("/api/surface/katalog", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      onSurface(data.messages);
+      updateFromKatalogPayload(data);
+      setSchritt("katalog");
+    },
+    [letztePersona, sessionId, lang, onSurface, updateFromKatalogPayload],
+  );
+
   const zuruecksetzen = useCallback(async () => {
     setVerlauf([]);
     setInterview([]);
+    setGewichte(null);
+    setLetztePersona(null);
+    setTopListingId("FB-00001");
+    setTopListingTitle("");
     await fetch("/api/chat/reset", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -286,6 +340,7 @@ export default function App() {
   // daily quota is gone, which is the point of keeping it.
   const persona = useCallback(
     async (name: string, gew: Record<string, number> | null) => {
+      setLetztePersona(name);
       setIstMiete(name === "umzug");
       const res = await fetch("/api/surface/katalog", {
         method: "POST",
@@ -294,15 +349,17 @@ export default function App() {
       });
       const data = await res.json();
       onSurface(data.messages);
-      setInterview(data.interview);
+      updateFromKatalogPayload(data);
       setSchritt("katalog");
     },
-    [lang, onSurface],
+    [lang, onSurface, updateFromKatalogPayload],
   );
 
-  const [letztePersona, setLetztePersona] = useState<string | null>(null);
+
   const intent = istMiete ? "miete" : "kauf";
-  const fahrzeug = encodeURIComponent(t("ausgewaehltesFahrzeug", lang));
+  const fahrzeugParam = encodeURIComponent(
+    topListingTitle || t("ausgewaehltesFahrzeug", lang)
+  );
 
   return (
     <LangContext.Provider value={lang}>
@@ -390,10 +447,7 @@ export default function App() {
               <div className="knopfreihe spalte">
                 <button
                   className={gewichte === null ? "aktiv" : ""}
-                  onClick={() => {
-                    setGewichte(null);
-                    persona(letztePersona ?? "familie", null);
-                  }}
+                  onClick={() => applyWeighting(null)}
                 >
                   {t("zuruecksetzen", lang)}
                 </button>
@@ -401,10 +455,7 @@ export default function App() {
                   <button
                     key={d}
                     className={gewichte && d in gewichte ? "aktiv" : ""}
-                    onClick={() => {
-                      setGewichte({ [d]: 1 });
-                      persona(letztePersona ?? "familie", { [d]: 1 });
-                    }}
+                    onClick={() => applyWeighting({ [d]: 1 })}
                   >
                     {t("nur", lang)} {t(`dim.${d}`, lang)}
                   </button>
@@ -491,7 +542,7 @@ export default function App() {
               <AppFrame
                 title={t("anfrageformular", lang)}
                 lang={lang}
-                endpoint={`/api/app/formular?listing_id=FB-00001&intent=${intent}&fahrzeug=${fahrzeug}&lang=${lang}`}
+                endpoint={`/api/app/formular?listing_id=${topListingId}&intent=${intent}&fahrzeug=${fahrzeugParam}&lang=${lang}`}
                 onToolResult={onToolResult}
               />
               <div className="schritt-verbindung-leiste">
@@ -526,9 +577,10 @@ export default function App() {
               <AppFrame
                 title={t("kasseSimuliert", lang)}
                 lang={lang}
-                endpoint={`/api/app/kasse?listing_id=FB-00001&intent=${intent}&betrag_eur=${istMiete ? 147 : 21490}&fahrzeug=${fahrzeug}&lang=${lang}`}
+                endpoint={`/api/app/kasse?listing_id=${topListingId}&intent=${intent}&betrag_eur=${istMiete ? 147 : 21490}&fahrzeug=${fahrzeugParam}&lang=${lang}`}
                 onToolResult={onToolResult}
               />
+
               <div className="schritt-verbindung-leiste">
                 <button
                   className="schritt-btn secondary"

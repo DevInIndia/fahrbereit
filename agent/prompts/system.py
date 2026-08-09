@@ -139,23 +139,14 @@ important reason, and invite questions.
 """
 
 INFERENCE_DE = """
-## Übliche Ableitungen
+## Übliche Ableitungen & Herkunft
 
-Diese Schlüsse darfst du ziehen und als "abgeleitet" eintragen. Sie werden der Person
-zur Bestätigung angezeigt, also ist ein falscher Schluss billig; gar kein Schluss
-führt dagegen zu Empfehlungen, die offensichtlich nicht passen.
+- Setze `herkunft` auf "gesagt" AUSSCHLIESSLICH für Werte, die die Person explizit mit konkreten Worten genannt hat (z. B. ein genanntes Budget, eine explizit genannte Litervorgabe).
+- Alle aus dem Kontext erschlossenen Werte (wie ein abgeleitetes Datum, abgeleitete Tags, vermutete Standorte) MUSST du zwingend mit `herkunft="abgeleitet"` eintragen, damit sie in der Benutzeroberfläche zur Bestätigung markiert werden.
 
-- Familie oder Kinder: mindestens 5 Sitzplätze, mindestens 400 l Kofferraum.
-- Umzug oder Transport: mindestens 550 l Kofferraum.
-- Regelmäßige Langstrecke, etwa monatlich mehrere hundert Kilometer: eher sparsam,
-  Jahresfahrleistung eher hoch ansetzen.
-- Tägliches Pendeln mit Entfernungsangabe: Jahresfahrleistung überschlägig aus der
-  Strecke ableiten und als abgeleitet eintragen.
-- Stadtverkehr oder Umweltzone: grüne Umweltplakette.
-- Nennt die Person einen Ort, trage ihn ein.
-
-Trage solche Ableitungen ein, bevor du `empfehlungen_erstellen` aufrufst. Ohne sie
-bekommt eine Familie einen Kleinstwagen vorgeschlagen, und das ist sichtbar falsch.
+Harte Filter vs. Soft Scoring:
+- Setze ein hartes Ausschlusskriterium wie `min_kofferraum_liter` oder `min_sitzplaetze` NUR DANN, wenn die Person selbst eine konkrete Zahl genannt hat (z. B. "mindestens 500 Liter Kofferraum").
+- Wenn die Person einen Einsatzzweck nennt (z. B. "Umzug", "Familie", "Pendeln"), trage `use_case_text` und `use_case_tags` ein (z. B. `["umzug"]` oder `["familie"]`). Die Bewertungslogik berechnet das Ladevolumen und die Eignung automatisch dynamisch im Ranking, ohne Angebote mit hartem Filter fälschlich auszuschließen.
 """
 
 LANGUAGE_DE = """
@@ -166,23 +157,14 @@ unverändert, so wie das Werkzeug sie liefert. Verwende eine saubere, gut lesbar
 """
 
 INFERENCE_EN = """
-## Inferences you are expected to make
+## Inferences & Provenance Rules
 
-You may draw these conclusions and record them as "abgeleitet". They are shown to the
-person for confirmation, so a wrong inference is cheap; making no inference at all
-produces recommendations that are visibly unsuitable.
+- Set `herkunft` to "gesagt" ONLY for values explicitly stated by the person with concrete words (e.g., stated budget, explicit volume numbers).
+- All values derived from context (e.g. calculated dates, derived tags, assumed location) MUST be recorded with `herkunft="abgeleitet"`, so they are visually marked for user confirmation in the UI.
 
-- Family or children: at least 5 seats, at least 400 l boot volume.
-- Moving house or transport: at least 550 l boot volume.
-- Regular long distance, several hundred kilometres a month: favour economy, set a
-  higher annual mileage.
-- Daily commuting with a stated distance: derive the annual mileage roughly from that
-  distance and record it as inferred.
-- City driving or a low emission zone: green emissions badge.
-- If the person names a place, record it.
-
-Record these before calling `empfehlungen_erstellen`. Without them a family is offered
-a city car, which is visibly wrong.
+Hard Filters vs. Soft Scoring:
+- Set a hard constraint like `min_kofferraum_liter` or `min_sitzplaetze` ONLY when the user explicitly provides a number (e.g. "at least 500 litres boot").
+- When the user mentions a general use case (e.g. "moving house", "family", "commuting"), record `use_case_text` and `use_case_tags` (e.g. `["umzug"]` or `["familie"]`). The scoring engine evaluates space and suitability softly, avoiding false hard exclusions.
 """
 
 LANGUAGE_EN = """
@@ -194,8 +176,14 @@ returned them; do not translate them.
 
 
 def system_prompt(lang: Lang = DEFAULT_LANG) -> str:
+    from datetime import date
+    today_str = date.today().strftime("%Y-%m-%d")
+    
     if lang == "en":
-        parts = [INTERVIEW_EN, INFERENCE_EN, GUARDRAIL_EN, LANGUAGE_EN]
+        date_ctx = f"## Current Date\nToday's date is {today_str} (YYYY-MM-DD). Always calculate target_date relative to today."
+        parts = [date_ctx, INTERVIEW_EN, INFERENCE_EN, GUARDRAIL_EN, LANGUAGE_EN]
     else:
-        parts = [INTERVIEW_DE, INFERENCE_DE, GUARDRAIL_DE, LANGUAGE_DE]
+        date_ctx = f"## Aktuelles Datum\nDas heutige Datum ist {today_str} (YYYY-MM-DD). Berechne target_date immer relativ zum heutigen Datum."
+        parts = [date_ctx, INTERVIEW_DE, INFERENCE_DE, GUARDRAIL_DE, LANGUAGE_DE]
     return "\n".join(parts).strip()
+

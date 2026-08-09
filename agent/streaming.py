@@ -209,9 +209,16 @@ def stream_turn(session_id: str, nachricht: str, lang: str = DEFAULT_LANG) -> It
 
         result = STORE.artifact(session_id, "ranking")
         if result is not None:
+            top_rec = result.empfehlungen[0] if result.empfehlungen else None
             yield _sse(
-                "katalog", {"messages": build_messages(result, lang=normalised)}
+                "katalog",
+                {
+                    "messages": build_messages(result, lang=normalised),
+                    "top_listing_id": top_rec.listing.id if top_rec else "FB-00001",
+                    "top_listing_title": top_rec.listing.bezeichnung if top_rec else "",
+                },
             )
+
 
         yield _sse(
             "fertig",
