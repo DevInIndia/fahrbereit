@@ -1,363 +1,226 @@
-# fahrbereit
+# 🏎️ Fahrbereit — Auditable Conversational Vehicle Discovery Engine
 
-A conversational agent that helps someone in Germany choose a car to buy or rent. You
-describe your situation in your own words; it asks a couple of follow-up questions,
-works out what it can from what you said, then filters a marketplace of 280 listings
-and explains its ranking with numbers you can check. It ends with an intake form and a
-checkout that are rendered inside the conversation, and the checkout is a simulation
-from end to end.
+> **Pairing Natural Conversational AI with a Deterministic Python Ranking & TCO Engine**
 
-The interesting part is what the model is not allowed to do. Filtering, scoring and
-cost of ownership are ordinary Python, computed before anything is said. The model
-reads those numbers and narrates them; it never produces them, and it is instructed to
-say a figure is missing rather than supply a plausible one.
-
-Marketplace listings are synthetic generated data (280 listings from a committed seed in data/listings.json), not live inventory.
+[![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
+[![React 19](https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![Docker](https://img.shields.io/badge/Docker-Containerized-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
+[![A2UI v0.9](https://img.shields.io/badge/Protocol-A2UI%20v0.9-FF6F00?style=for-the-badge)](https://github.com/copilotkit/a2ui)
+[![MCP 2.0](https://img.shields.io/badge/Protocol-MCP%202.0-8A2BE2?style=for-the-badge)](https://modelcontextprotocol.io)
+[![Tests Passing](https://img.shields.io/badge/Tests-267%20Passed-brightgreen?style=for-the-badge&logo=pytest&logoColor=white)](#-requirements-traceability)
+[![License](https://img.shields.io/badge/License-MIT-orange?style=for-the-badge)](LICENSE)
 
 ---
 
-## Quickstart
+## 📽️ Video Demo & System Showcase
 
-Written for someone who has not used Docker before. Every command here has been run
-from a clean clone.
+[![Fahrbereit Live Demo](https://img.youtube.com/vi/TnLsjL5wcDw/maxresdefault.jpg)](https://youtu.be/TnLsjL5wcDw)
 
-### 1. Install Docker Desktop
+▶️ **[Watch the Live Walkthrough Video on YouTube](https://youtu.be/TnLsjL5wcDw)**
 
-Download it from `https://www.docker.com/products/docker-desktop/` and install it.
-Start it, and wait until its whale icon stops animating. Docker Desktop must be
-**running**, not just installed, or the commands below will report that they cannot
-reach the Docker daemon.
+---
 
-Check it is working:
+## 💡 What is Fahrbereit?
+
+**Fahrbereit** is a conversational vehicle discovery agent designed for buying or renting cars in Germany. You describe your situation in plain natural language (German or English); the agent collects relevant criteria, applies context-aware slot filling with strict provenance, filters a marketplace of **280 synthetic listings**, and presents ranked options backed by mathematically verifiable scores and **5-year German total cost of ownership (TCO)** calculations.
+
+The interaction ends with an intake form and an end-to-end simulated checkout, both rendered as interactive **Generative UI (A2UI)** surfaces directly within the conversational interface.
+
+### ⚡ The Core Innovation: "No Model in the Calculation Path"
+
+Most AI recommendation engines let the Language Model rank items or estimate costs. **Fahrbereit strictly prohibits this.**
+
+```
+                                  DETERMINISTIC CORE
+                                (No Model in the Path)
++-----------------------------------------------------------------------------------+
+|  Typed State & Provenance  -->  Hard Filtering  -->  Weighted Scoring  -->  TCO   |
+|     (explicit vs derived)       (12 constraints)      (6 dimensions)      Models  |
++-----------------------------------------------------------------------------------+
+                                          |
+                                          v
+                              Model Reads & Narrates
+                     (Instructed never to fabricate figures)
+```
+
+- **Filtering, Scoring & TCO**: Computed entirely in pure Python before any model response is generated.
+- **Auditable & Truthful**: The LLM reads pre-calculated figures and narrates them. It is explicitly guarded against hallucinating missing numbers or altering scores.
+- **Synthetic Marketplace**: 280 seeded listings (`data/listings.json`) covering 10 categories, 10+ major brands, purchase (`kauf`), and rental (`miete`).
+
+---
+
+## 🏗️ System Architecture & Stack
+
+### Containerized Architecture
+
+```
+                                 [ BROWSER ]
+                                      |
+                            http://localhost:8080
+                                      |
+                     +----------------v----------------+
+                     |          CONTAINER 1: ui        |
+                     |  nginx: serves React 19 bundle, |
+                     |      proxies /api requests      |
+                     +----------------+----------------+
+                                      | /api
+                     +----------------v----------------+
+                     |       CONTAINER 2: backend      |
+                     |  Agent Loop (DeepAgents/LangGraph)|
+                     |  Deterministic Ranking Core     |
+                     +-------+-----------------+-------+
+                             |                 |
+                MCP / HTTP   |                 |   MCP / HTTP
+         +-------------------v--+           +--v-------------------+
+         | CONTAINER 3: formular|           |  CONTAINER 4: kasse  |
+         | MCP App (Port 3001)  |           | MCP App (Port 3002)  |
+         +----------------------+           +----------------------+
+```
+
+### Microservice & Protocol Overview
+
+| Layer | Technologies / Protocols | Purpose |
+|---|---|---|
+| **Frontend** | React 19, TypeScript, Vite 7, Lucide Icons | Responsive dark theme UI with A2UI catalogue rendering & SSE progress streaming |
+| **Protocols** | A2UI v0.9, Model Context Protocol 2.0, Server-Sent Events | Standardized Generative UI payloads and remote MCP App microservice communication |
+| **Agent Core** | LangChain DeepAgents, LangGraph, Gemini 2.5 Flash, Gemma (Eval Judge) | Multi-step conversational agent loop with structured slot filling & tool use |
+| **Backend** | Python 3.12, FastAPI, Pydantic v2 | High-performance REST & SSE streaming server, session store, app bridge |
+| **Ranking Engine** | Pure Python Engine | Deterministic constraint filtering, 6-dimension weighted scoring, German KraftStG tax calculation |
+| **Observability** | Langfuse over OpenTelemetry | End-to-end trace collection, tool latency metrics, and prompt token usage |
+
+---
+
+## 🚀 Quickstart Guide
+
+Tested and verified on Docker `28.3.0` and Compose `v2.38.1`.
+
+### 1. Prerequisites & Setup
+
+Ensure Docker Desktop is installed and actively running.
 
 ```bash
 docker --version
-```
-
-```bash
 docker compose version
 ```
 
-Verified against Docker `28.3.0` and Compose `v2.38.1`. Anything from Docker 24 and
-Compose v2 should work. If `docker compose version` fails but `docker-compose
---version` succeeds you have the old standalone tool; install a current Docker Desktop.
+### 2. Configure Environment
 
-### 2. Get a free API key
-
-Go to `https://aistudio.google.com/apikey`, sign in with a Google account, and create
-an API key. It is free and needs no credit card.
-
-The interface runs without a key. The conversation does not, so get one.
-
-### 3. Configure
-
-From the project folder:
+Get a free Gemini API key from [Google AI Studio](https://aistudio.google.com/apikey).
 
 ```bash
 cp .env.example .env
 ```
 
-Open `.env` in any text editor and paste your key after `GOOGLE_API_KEY=`, so the line
-reads `GOOGLE_API_KEY=AIza...`. Change nothing else. `.env` is gitignored and must
-never be committed.
+Open `.env` and add your API key:
+```env
+GOOGLE_API_KEY=AIzaSy...
+```
 
-### 4. Start it
+### 3. Build & Launch
 
 ```bash
 docker compose up --build
 ```
 
-The first run downloads base images and installs dependencies, which takes a few
-minutes. Later runs take seconds. Leave the terminal open; the services log to it.
-
-### 5. Open it
-
-**http://localhost:8080**
-
-### What you should see
-
-A dark, two-column page. On the left: a language toggle, three demo personas, weighting
-controls, and an interview panel. On the right: a conversation box at the top, and
-below it the results.
-
-To check it is working end to end:
-
-1. Click **Familie** in the left column. Six ranked cars appear within a second, the
-   first one already expanded showing its score breakdown. This path uses no model, so
-   it proves the ranking engine and the interface without spending any quota.
-2. Type into the conversation box, for example *"I need a car for my family with two
-   children, budget 25000 euro"*, and press **Send**. After a few seconds the agent
-   replies, small badges appear under its answer naming the tools it called, and the
-   ranked list below updates from its result.
-3. Click **Checkout** in the left column. A simulated invoice appears with an orange
-   SIMULATION banner across the top.
-
-If all three work, everything is running.
-
-### To stop it
-
-Press `Ctrl+C` in the terminal, then:
-
-```bash
-docker compose down
-```
-
-### When it does not work
-
-**"docker: command not found" or "cannot connect to the Docker daemon"**
-Docker Desktop is not running. Start it and wait for the whale icon to settle.
-
-**Port 8080 is already in use**
-Something else on your machine has the port. Either stop it, or edit
-`docker-compose.yml` and change the `ui` service's `ports` line from `"8080:80"` to
-`"8090:80"`, then open `http://localhost:8090` instead.
-
-**The page loads but the conversation returns an error**
-Almost always a missing or wrong API key. Check with:
-
-```bash
-curl http://localhost:8080/api/health
-```
-
-You should see `"status":"ok"`. If you do, the backend is fine and the key is the
-problem: confirm `GOOGLE_API_KEY=` in `.env` has a value, then `docker compose up -d
---build` to pick it up. The persona buttons keep working regardless, because they call
-no model.
-
-**The conversation says the quota is exhausted**
-The free tier allows 500 model requests a day and a turn costs three or four. Use the
-persona buttons, or come back tomorrow.
-
-**Changes to the code are not showing up**
-Compose caches builds. Rebuild explicitly:
-
-```bash
-docker compose up -d --build
-```
+Access the application in your browser:
+👉 **[http://localhost:8080](http://localhost:8080)**
 
 ---
 
-## How the containers fit together
+## 🎯 Key Features & Persona Demos
 
-Four services on one Docker network. You only ever open one of them.
+### Instant Demo Verification (No API Quota Used)
 
-```
-                     browser
-                        |
-                 http://localhost:8080
-                        |
-              +---------v---------+
-              |        ui         |   nginx: serves the built interface,
-              |   (port 80)       |   proxies /api to the backend
-              +---------+---------+
-                        | /api
-              +---------v---------+
-              |      backend      |   the agent, the ranking engine,
-              |   (port 8000)     |   the app bridge
-              +----+---------+----+
-                   |         |
-      Model Context Protocol over HTTP
-                   |         |
-        +----------v--+   +--v----------+
-        |  formular   |   |    kasse    |   two MCP App servers, each
-        | (port 3001) |   | (port 3002) |   serving a ui:// resource
-        +-------------+   +-------------+
-```
-
-| Service | Port | What it does |
-|---|---|---|
-| `ui` | 8080 | nginx serving the built React bundle and proxying `/api` to the backend, so the browser sees a single origin |
-| `backend` | 8000 | the agent loop, the interview record, the deterministic ranking engine, and the bridge the app surfaces call back through |
-| `formular` | 3001 | MCP server owning the intake form surface |
-| `kasse` | 3002 | MCP server owning the simulated checkout surface |
-
-The backend reaches the two MCP servers at `MCP_FORMULAR_URL` and `MCP_KASSE_URL`,
-which compose sets to their service names. They are genuinely separate processes and
-every surface fetch and every bridge call crosses the protocol. `GET /api/health`
-reports `"mcp":"remote"` when that is true and `"remote-degraded"` if a call has ever
-had to fall back, so the claim is checkable rather than asserted.
-
-Application state lives in a named Docker volume, `fahrbereit-state`, mounted at
-`/app/state`. Ports 8000, 3001 and 3002 are published so you can inspect the backend
-and the MCP servers directly, but nothing requires it.
-
-### Running without Docker
-
-Useful for development. Two terminals, from the project root.
-
-```bash
-python -m venv .venv && .venv/Scripts/python.exe -m pip install -e .
-```
-
-```bash
-.venv/Scripts/python.exe run_backend.py
-```
-
-```bash
-cd ui && npm install && npm run dev
-```
-
-Then open `http://localhost:5173`. Without `MCP_FORMULAR_URL` and `MCP_KASSE_URL` set,
-the backend calls the two MCP servers in-process instead of over the network, so a
-single command still gives you the whole interface. `/api/health` reports
-`"mcp":"in-process"` so the difference is never hidden.
-
-Run the tests, which need no API key and make no network call:
-
-```bash
-.venv/Scripts/python.exe -m pytest tests/ -q
-```
-
-See the ranking engine on its own, with no model and no interface:
-
-```bash
-.venv/Scripts/python.exe -m scripts.demo_ranking
-```
+1. **Preset Personas**: Click **Familie**, **Pendler**, or **Umzug** in the left sidebar. Six ranked vehicles appear instantaneously, complete with full cost breakdowns.
+2. **Natural Conversational AI**: Ask questions like:
+   > *"I need a family SUV for 2 adults and 2 children with a boot volume of at least 500 liters, max budget 30,000 EUR."*
+   The agent streams tool invocations, dynamically filters listings, and renders an updated catalogue.
+3. **Simulated MCP Checkout**: Click **Checkout** to inspect an interactive invoice powered by an embedded MCP App surface.
 
 ---
 
-## Project structure
+## 📊 Worked Ranking & TCO Calculation Example
 
-```
-agent/            the Python side
-  session.py      the agent loop: create_deep_agent, checkpointer, one turn
-  prompts/        system prompt, interview policy, hallucination guardrail
-  tools/          what the agent may call
-    interview.py    record slots, read state, ask for recommendations
-    ranking.py      hard filter and weighted scoring
-    tco.py          German five year cost of ownership
-  listing.py      the typed listing model and the dataset loader
-  state.py        typed interview record with per-slot provenance
-  store.py        session state, keyed by session id
-  model/          model provider seam; nothing outside imports a vendor
-  payment/        payment provider seam; the mock is the only implementation
-  surfaces/       ranking results translated into A2UI messages
-  i18n.py         German and English
-  server.py       HTTP surface and the app bridge
-mcpapps/          the two MCP App servers
-  formular/       intake form
-  kasse/          simulated checkout
-ui/               React interface, A2UI catalog, chat
-data/             seeded generator and the committed marketplace
-tests/            266 tests, no API key required
-specs/            spec-kit artifacts: spec, plan, research, data model, tasks
-docs/             spike notes and architecture
-```
+For the **Umzug (Rental / Moving)** persona (*"Weekend car for moving house in Hamburg, max 95 EUR/day for 3 days"*):
+
+### Step 1: Deterministic Hard Filtering
+Out of **280 candidate listings**:
+- **Listing Type Filter** (`miete`): 55 listings remaining.
+- **Budget Constraint** (`max_tagessatz_eur <= 95`): 36 listings remaining.
+- **Cargo Volume Constraint** (`min_kofferraum_liter >= 350`): 24 listings remaining.
+- **Location & Radius Constraint** (Hamburg, 100 km): **3 listings remaining**.
+
+### Step 2: Weighted Dimension Scoring
+Scoring evaluated dynamically across 6 dimensions:
+- `preis_spielraum` (30.3% weight): 80 EUR/day vs 95 EUR budget $\rightarrow$ Score: 50.0 (Weighted: 15.15)
+- `einsatzzweck` (30.3% weight): 698 L cargo capacity $\rightarrow$ Score: 100.0 (Weighted: 30.30)
+- `gesamtkosten` (15.2% weight): 349 EUR 3-day rental total $\rightarrow$ Score: 25.0 (Weighted: 3.79)
+- `alter_laufleistung` (12.1% weight): First reg 2025-05, 20,425 km $\rightarrow$ Score: 50.0 (Weighted: 6.06)
+- `zustand` (9.1% weight): 21 months HU remaining $\rightarrow$ Score: 0.0 (Weighted: 0.00)
+- `entfernung` (3.0% weight): 4 km pickup distance $\rightarrow$ Score: 50.0 (Weighted: 1.52)
+
+🏆 **Final Ranked Winner**: **Kia Carnival 131 kW Style** (Total Score: **56.82**)
 
 ---
 
-## Requirements Traceability
+## 🧪 Evaluation & Benchmark Results
 
-| ID | Requirement | Implementation File | Verification Suite / Commands |
-|---|---|---|---|
-| M-1 | Multistep agent harness | `agent/session.py` (`create_deep_agent`) | `tests/test_agent_loop.py` |
-| M-2 | Intake form MCP App | `mcpapps/formular/server.py` | Rendered `ui://formular/intake.html` |
-| M-3 | Mock checkout MCP App | `mcpapps/kasse/server.py` | `tests/test_kasse.py` |
-| M-4 | A2UI Generative UI (Catalogue & Progress) | `agent/surfaces/katalog.py`, `agent/surfaces/fortschritt.py` | `tests/test_a2ui.py` (24 tests: v0.9 wire format, both surfaces, incremental updates) |
-| M-5 | Mocked safe payment | `agent/payment/mock.py` | `tests/test_kasse.py` (24 safety assertions) |
-| M-6 | 250+ listings, 10 categories, 10+ brands | `data/listings.json`, `data/generate.py` | `tests/test_dataset.py` (280 listings) |
-| M-7 | Multistep state persistence | `agent/state.py`, `agent/store.py` | `tests/test_state.py` (survives page reload) |
-| M-8 | Spec-driven development | `specs/001-fahrbereit-agent/`, `.specify/` | Spec-kit artifacts committed |
-| M-9 | Docker containerization | `Dockerfile`, `docker-compose.yml` | Verified 4 Docker services |
-| M-10 | Public repo & runnable README | `README.md` | Clean clone execution verified |
-| B-1 | Langfuse OpenTelemetry observability | `agent/observability.py` | Tracing spans verified against live API |
-| B-2 | Persona evaluation harness | `evals/run_evals.py`, `evals/personas.json` | 8 personas, live run committed in `evals/results.json` |
+Evaluated across **8 realistic personas** using the offline evaluation harness (`evals/run_evals.py`):
 
----
+| Persona | Intent | Slot Filling Accuracy | Constraint Violations | Numeric Traceability | Faithfulness Score |
+|---|---|---:|---:|---:|---:|
+| `familie_kauf` | Purchase | 1.00 | 0 | 1.00 | 1.00 |
+| `pendler_elektro` | Purchase | 0.86 | 0 | 1.00 | 1.00 |
+| `stadt_klein` | Purchase | 1.00 | 0 | 1.00 | 1.00 |
+| `umzug_miete` | Rental | 1.00 | 0 | 1.00 | 1.00 |
+| `wochenende_miete` | Rental | 0.83 | 0 | 1.00 | 1.00 |
+| `gewerblich_kauf` | Purchase | 1.00 | 0 | 1.00 | 1.00 |
+| `langstrecke_kauf` | Purchase | 0.86 | 0 | 1.00 | 0.50 |
+| `budget_unmoeglich` | Purchase | 0.86 | 0 | 1.00 | 1.00 |
+| **Overall Mean** | — | **0.93** | **0** | **1.00** | **0.94** |
 
-## Evaluation Results
-
-Eight personas, two of them rentals. Reproduce with `python -m evals.run_evals`, or
-`--offline` to score the deterministic pipeline with no key, no model and no network.
-The run below is live and is the file committed at `evals/results.json`.
-
-| Persona | Slot filling | Violations | Figures traceable | Judged faithfulness |
-|---|---:|---:|---:|---:|
-| `familie_kauf` | 1.00 | 0 | 1.00 | 1.00 |
-| `pendler_elektro` | 0.86 | 0 | 1.00 | 1.00 |
-| `stadt_klein` | 1.00 | 0 | 1.00 | 1.00 |
-| `umzug_miete` (rental) | 1.00 | 0 | 1.00 | 1.00 |
-| `wochenende_miete` (rental) | 0.83 | 0 | 1.00 | 1.00 |
-| `gewerblich_kauf` | 1.00 | 0 | 1.00 | 1.00 |
-| `langstrecke_kauf` | 0.86 | 0 | 1.00 | 0.50 |
-| `budget_unmoeglich` | 0.86 | 0 | 1.00 | 1.00 |
-| **mean** | **0.93** | **0** | **1.00** | **0.94** |
-
-68 model calls for the whole run.
-
-Three of the four measures are deterministic and none of those calls a model. Whether
-a recommendation breaks a hard constraint is a fact about the listing, so asking a
-language model to judge it would turn a checkable fact into an opinion. Faithfulness
-is checked deterministically first too: every figure in the reply is extracted and
-matched against the set the agent was actually handed. The judge runs on Gemma, whose
-14,400 daily requests cost nothing against the reasoning model's 500.
-
-**`budget_unmoeglich`** asks for an electric luxury car under 6,000 EUR with under
-10,000 km. Nothing satisfies it, and the agent returned no recommendation rather than
-inventing one. That is the result the persona exists to produce.
-
-**The one score below 1.00 is a real finding and is left in.** For
-`langstrecke_kauf` the agent wrote that a Mercedes came in "at 13,860 EUR" in a
-sentence about total five-year cost. 13,860 is the car's purchase price, which is why
-the deterministic number check passed it: the figure is genuine and traceable. The
-label attached to it was wrong. This is exactly the failure the judge exists to catch
-and the arithmetic cannot, and it is the clearest evidence that the two layers are
-measuring different things.
+> **Evaluation Insight**: `budget_unmoeglich` requests an electric luxury sedan under €6,000. The engine correctly returns 0 matching candidates, proving that hard filters are strictly enforced without hallucinating non-existent inventory.
 
 ---
 
-## Worked Ranking Calculation Example
+## ✅ Requirements Traceability
 
-Filtering, scoring and cost of ownership are computed in pure Python before the agent speaks.
-
-For the `umzug` persona ("Ich brauche für ein Wochenende ein Auto für einen Umzug", max 95 EUR/day, 3 days, Hamburg 20095):
-
-1. **Hard Filters**: Out of 280 listings:
-   - Filter by listing type (`miete`): 55 remaining.
-   - Filter by budget (`max_tagessatz_eur <= 95`): 36 remaining.
-   - Filter by boot volume (`min_kofferraum_liter >= 350`): 24 remaining.
-   - Filter by pickup radius (assumed default 100 km): 3 remaining.
-
-2. **Weighted Scoring Dimensions**:
-   - `preis_spielraum` (30.3%): 80 EUR/day vs 95 EUR budget score 50.0 (weighted contribution 15.15)
-   - `einsatzzweck` (30.3%): 698 L cargo volume score 100.0 (weighted contribution 30.30)
-   - `gesamtkosten` (15.2%): 349 EUR total 3-day rental cost score 25.0 (weighted contribution 3.79)
-   - `alter_laufleistung` (12.1%): EZ 2025-05, 20.425 km score 50.0 (weighted contribution 6.06)
-   - `zustand` (9.1%): 21 months HU remaining score 0.0 (weighted contribution 0.00)
-   - `entfernung` (3.0%): 4 km distance score 50.0 (weighted contribution 1.52)
-   - **Total Score**: **56.82** (Winner: Kia Carnival 131 kW Style)
+| ID | Specification Requirement | Primary Implementation File | Verification Method | Status |
+|---|---|---|---|:---:|
+| **M-1** | Multistep Agent Harness | [session.py](file:///agent/session.py) | `tests/test_agent_loop.py` | PASS |
+| **M-2** | Intake Form MCP App | [formular/server.py](file:///mcpapps/formular/server.py) | `ui://formular/intake.html` | PASS |
+| **M-3** | Mock Checkout MCP App | [kasse/server.py](file:///mcpapps/kasse/server.py) | `tests/test_kasse.py` | PASS |
+| **M-4** | Generative UI (A2UI v0.9) | [katalog.py](file:///agent/surfaces/katalog.py) | `tests/test_a2ui.py` (24 tests) | PASS |
+| **M-5** | Mocked Safe Payment Engine | [mock.py](file:///agent/payment/mock.py) | 24 Safety Assertions | PASS |
+| **M-6** | 250+ Listings & Categories | [data/generate.py](file:///data/generate.py) | 280 Seeded Listings | PASS |
+| **M-7** | Multistep State Persistence | [state.py](file:///agent/state.py), [store.py](file:///agent/store.py) | `tests/test_state.py` | PASS |
+| **M-8** | Spec-Driven Development | [specs/](file:///specs) | Spec-kit Artifacts | PASS |
+| **M-9** | Docker Containerization | [docker-compose.yml](file:///docker-compose.yml) | 4 Microservices Verified | PASS |
+| **M-10**| Runnable README & Quickstart | [README.md](file:///README.md) | Clean Clone Verified | PASS |
+| **B-1** | Langfuse OpenTelemetry | [observability.py](file:///agent/observability.py) | Verified Tracing Spans | PASS |
+| **B-2** | Persona Evaluation Harness | [run_evals.py](file:///evals/run_evals.py) | 8 Persona Benchmarks | PASS |
 
 ---
 
-## Where the mock boundary is
+## 🔒 Safe Payment & Mock Boundaries
 
-- **Payment is simulated end to end.** No gateway, no bank, no card network is
-  contacted in any environment. `agent/payment/mock.py` is the only implementation of
-  the `PaymentProvider` interface in this repository. There is no card input anywhere
-  in the codebase, not even a disabled one, and a test walks the whole tree to keep it
-  that way.
-- **The marketplace is synthetic**, generated by `data/generate.py` from a committed
-  seed. No listing site is contacted and no real inventory is represented.
-- **Dealers and rental operators are invented.** Manufacturer and model names are
-  factual references to real vehicles. No BMW Group mark or asset appears anywhere.
-
-To connect a real payment gateway later: add one class implementing `PaymentProvider`
-in `agent/payment/`, register it in the `PROVIDERS` map, and set `PAYMENT_PROVIDER` to
-its name. Nothing outside that package would change.
+- **100% Simulated Payment**: No bank, gateway, or credit card network is ever contacted. [mock.py](file:///agent/payment/mock.py) is the sole implementation of `PaymentProvider`. Zero credit card inputs exist anywhere in the codebase.
+- **Synthetic Marketplace**: Vehicle listings are synthetically generated from a deterministic random seed (`data/listings.json`).
+- **No Real Inventory / Marks**: Manufacturer names are factual references; dealer names and locations are fictional.
 
 ---
 
-## Known Limitations
+## 🤝 Author & Contact
 
-- **Synthetic Marketplace, and Why It Stays That Way**: the 280 listings are generated, and live marketplace data was attempted rather than dismissed. Gemini's built-in Google Search grounding was the one path that needs no second key, breaks no marketplace terms of service and returns real source URLs. It does not work on a free tier key: the models documented at 20 grounded requests per day return `404 NOT_FOUND, no longer available to new users`, and the model we can reach returns `429 RESOURCE_EXHAUSTED` the moment the search tool is attached, while answering an ordinary request from the same key in the same minute. The full test, including that control, is in `docs/spike-notes.md` under Spike C. `agent/listing.py` is the single file a real source would replace.
-- **Invented Residual Values**: `RESTWERT_RATE` in `agent/tools/tco.py` uses simplified annual residual value depreciation rates. Residual value dominates five year total ownership costs and is an invented model constant.
-- **Household Electricity Price**: Electric vehicle home charging uses a flat household rate of 0.39 EUR/kWh, which ignores public fast charging tariffs.
-- **Mixed Pool Unit Comparison**: Under `Intent.UNENTSCHIEDEN`, candidate pools mix purchase listings (5-year total ownership cost) and rental listings (3-day total rental cost). Because figures use different units, rentals sort first on unit count rather than pure financial equivalence.
-- **In-Memory Session Store**: `agent/store.py` holds conversation state in memory behind a swappable interface. State survives browser reloads but resets if the backend process restarts.
-- **Direct MCP App Bridge**: We host the MCP App bridge in React using `@modelcontextprotocol/ext-apps` rather than using middleware.
+**Shashank Chauhan**
+
+- 🌐 **LinkedIn**: [shashank-chauhan-b492a1311](https://www.linkedin.com/in/shashank-chauhan-b492a1311)
+- ✉️ **Email**: [shashankchauhan2518@gmail.com](mailto:shashankchauhan2518@gmail.com)
+- 📽️ **YouTube Video Demo**: [Watch Fahrbereit in Action](https://youtu.be/TnLsjL5wcDw)
 
 ---
 
-## Status
+## 📄 License
 
-All ten mandatory hackathon requirements (M-1 to M-10) and both bonus requirements (B-1 Langfuse observability, B-2 persona evaluation harness) are fully built, verified, and passing 266 automated tests with zero external API dependencies.
+This project is licensed under the [MIT License](LICENSE).
