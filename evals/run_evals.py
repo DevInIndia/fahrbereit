@@ -18,7 +18,9 @@ the quota is gone, which on a demonstration day is not a small thing.
     python -m evals.run_evals
     python -m evals.run_evals --personas umzug_miete,familie_kauf --no-judge
 
-Results are written to evals/results.json and printed as a table.
+A live run writes evals/results.json. An offline run writes evals/results_offline.json,
+so a routine offline check cannot overwrite the published live evidence. Override
+either with --out.
 """
 
 from __future__ import annotations
@@ -54,6 +56,7 @@ from evals.scoring import (
 HERE = Path(__file__).resolve().parent
 PERSONAS_FILE = HERE / "personas.json"
 RESULTS_FILE = HERE / "results.json"
+OFFLINE_RESULTS_FILE = HERE / "results_offline.json"
 
 
 def load_personas() -> list[dict[str, Any]]:
@@ -280,8 +283,23 @@ def main() -> int:
     )
     parser.add_argument("--personas", default="", help="comma separated ids to run")
     parser.add_argument("--no-judge", action="store_true", help="skip the LLM judge")
-    parser.add_argument("--out", default=str(RESULTS_FILE))
+    parser.add_argument(
+        "--out",
+        default="",
+        help="where to write results. Defaults to results.json for a live run and "
+        "results_offline.json otherwise.",
+    )
     args = parser.parse_args()
+
+    # Offline mode writes somewhere else by default. The two runs do not measure the
+    # same thing: offline scores only the deterministic pipeline and leaves slot
+    # filling, traceability and the judge null. Letting it default to the same path
+    # meant a routine offline check silently overwrote the published live results with
+    # a file whose interesting columns are all empty, which is exactly how this
+    # project once ended up shipping an eval table its own evidence did not support.
+    ziel = args.out or str(
+        OFFLINE_RESULTS_FILE if args.offline else RESULTS_FILE
+    )
 
     personas = load_personas()
     if args.personas:
@@ -334,10 +352,10 @@ def main() -> int:
         "personas": len(results),
         "ergebnisse": results,
     }
-    Path(args.out).write_text(
+    Path(ziel).write_text(
         json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
-    print(f"\nwritten to {args.out}")
+    print(f"\nwritten to {ziel}")
 
     return 1 if any(r["constraints"]["verstoesse"] for r in results) else 0
 

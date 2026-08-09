@@ -36,7 +36,10 @@ state/
 *.sqlite
 *.sqlite3
 
-# Eval output
+# Eval output. evals/results.json is the published live run and is committed on
+# purpose. The offline run is a local check of the deterministic pipeline only, and
+# must never be mistaken for it.
+evals/results_offline.json
 evals/results/*.json
 evals/results/*.md
 !evals/results/.gitkeep

@@ -9,7 +9,7 @@ This document provides a comprehensive handover record and rollback log for futu
 * **Date**: 2026-08-08
 * **Branch**: `main` (working tree clean)
 * **HEAD Commit**: `0f0b450` (`docs(readme): final pass with requirement traceability, disclosures, and state reconciliation`)
-* **Test Suite**: 234 passing tests (`.venv/Scripts/python.exe -m pytest tests/ -q`), 0 failures, 0 network dependencies.
+* **Test Suite**: 266 passing tests (`.venv/Scripts/python.exe -m pytest tests/ -q`), 0 failures, 0 network dependencies.
 * **Python Path**: `.venv/Scripts/python.exe`
 * **Backend Entry Point**: `run_backend.py`
 * **Frontend Entry Point**: `cd ui && npm run dev`
@@ -69,17 +69,26 @@ Get-Process python* | Stop-Process -Force
 
 ### Commit `0f0b450` - `docs(readme): final pass with requirement traceability, disclosures, and state reconciliation`
 * **Scope**: Documentation, synthetic dataset disclosures, and state reconciliation.
-* **Files**: [README.md](file:///c:/Users/lenovo/Documents/GitHub/fahrbereit/README.md), [docs/state.md](file:///c:/Users/lenovo/Documents/GitHub/fahrbereit/docs/state.md), [specs/001-fahrbereit-agent/tasks.md](file:///c:/Users/lenovo/Documents/GitHub/fahrbereit/specs/001-fahrbereit-agent/tasks.md), [specs/001-fahrbereit-agent/research.md](file:///c:/Users/lenovo/Documents/GitHub/fahrbereit/specs/001-fahrbereit-agent/research.md), [ui/src/App.tsx](file:///c:/Users/lenovo/Documents/GitHub/fahrbereit/ui/src/App.tsx), [ui/src/i18n.ts](file:///c:/Users/lenovo/Documents/GitHub/fahrbereit/ui/src/i18n.ts).
+* **Files**: [README.md](../README.md), [docs/state.md](../docs/state.md), [specs/001-fahrbereit-agent/tasks.md](../specs/001-fahrbereit-agent/tasks.md), [specs/001-fahrbereit-agent/research.md](../specs/001-fahrbereit-agent/research.md), [ui/src/App.tsx](../ui/src/App.tsx), [ui/src/i18n.ts](../ui/src/i18n.ts).
 * **Details**: Added Requirements Traceability Table (M-1 to M-10 + B-1/B-2), worked ranking example from `scripts/demo_ranking.py`, honest known limitations (`RESTWERT_RATE`, electricity price 0.39 EUR/kWh, unit sorting under `UNENTSCHIEDEN`, in-memory store restart behavior, custom MCP bridge), synthetic data disclosures across UI/README/research.md, and reconciled `docs/state.md` and `tasks.md` noting Bug 2 description overstatement.
 
 ### Commit `396fad5` - `feat(evals): commit live persona evaluation results with 1.00 numerical traceability`
-* **Scope**: Published live 8-persona evaluation results (`MODEL_CACHE=0`).
-* **Files**: [evals/results.json](file:///c:/Users/lenovo/Documents/GitHub/fahrbereit/evals/results.json).
-* **Details**: 64 model calls across 8 personas. Hard constraint violations: 0, slot filling mean: 0.93, numerical traceability: 1.00 (100% of emitted numbers trace back to Python data, confirming false positives like Fiat 500/Mercedes C 200/550 L boot capacity are gone), judged faithfulness: 1.00.
+* **Scope**: Published 8-persona evaluation results.
+* **Files**: [evals/results.json](../evals/results.json).
+* **CORRECTED by `b4dcedf`. The claims below were not supported by the file this
+  commit actually contained.** The committed `results.json` carried `"modus":
+  "offline"`. Offline mode does not call a model, so slot filling, numerical
+  traceability and judged faithfulness were `null` for all eight personas, and the
+  0.93 / 1.00 / 1.00 figures appear nowhere in it. A genuine live run was made and
+  committed at `b4dcedf`: 68 model calls, 0 hard constraint violations, slot filling
+  0.93, numerical traceability 1.00, judged faithfulness 0.94. The lower judge mean is
+  real and is kept: one persona scored 0.50 for labelling a purchase price as a five
+  year cost, which the deterministic number check could not catch because the figure
+  itself was genuine.
 
 ### Commit `5deb830` - `fix(ranking): loosen umzug persona hard boot constraint to eliminate double-counting`
 * **Scope**: Persona constraint modeling fix.
-* **Files**: [agent/server.py](file:///c:/Users/lenovo/Documents/GitHub/fahrbereit/agent/server.py), [scripts/demo_ranking.py](file:///c:/Users/lenovo/Documents/GitHub/fahrbereit/scripts/demo_ranking.py).
+* **Files**: [agent/server.py](../agent/server.py), [scripts/demo_ranking.py](../scripts/demo_ranking.py).
 * **Details**: Changed `min_kofferraum_liter` from 550 to 350 liters in the `umzug` demo persona definitions to eliminate double-counting between the hard cutoff and soft `Ladevolumen` weighting. `demo_ranking.py --persona umzug` now returns 3 candidates with Kia Carnival (698 L boot) winning on cargo merit.
 
 ---
@@ -90,9 +99,9 @@ All building tasks are **COMPLETE** and verified:
 1. **Mandatory Requirements (M-1 to M-10)**: All 10 built and verified.
 2. **Bonus Requirements**: B-1 (Langfuse observability) and B-2 (Persona evals) completed.
 3. **Documentation Assets Created**:
-   * [docs/architecture.md](file:///c:/Users/lenovo/Documents/GitHub/fahrbereit/docs/architecture.md): Container topology, DeepAgents orchestrator, A2UI v0.9 streaming, MCP App bridge, ranking/TCO formulas, and Langfuse tracing.
-   * [docs/slide_deck_outline.md](file:///c:/Users/lenovo/Documents/GitHub/fahrbereit/docs/slide_deck_outline.md): Presentation deck structure for submission.
-   * [docs/video_demo_script.md](file:///c:/Users/lenovo/Documents/GitHub/fahrbereit/docs/video_demo_script.md): Scripted 3-minute video walkthrough.
+   * [docs/architecture.md](../docs/architecture.md): Container topology, DeepAgents orchestrator, A2UI v0.9 streaming, MCP App bridge, ranking/TCO formulas, and Langfuse tracing.
+   * [docs/slide_deck_outline.md](../docs/slide_deck_outline.md): Presentation deck structure for submission.
+   * [docs/video_demo_script.md](../docs/video_demo_script.md): Scripted 3-minute video walkthrough.
 
 ---
 

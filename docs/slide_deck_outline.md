@@ -53,4 +53,4 @@ Recommended presentation deck outline for hackathon submission (Amulate Summer H
 ## Slide 7: Demonstration & Repository Links
 * **Live Demo**: Open `http://localhost:8080` (or run `docker compose up --build`).
 * **Persona Shortcuts**: Instant fallback buttons bypassing the LLM for quota-free evaluation.
-* **GitHub Repository**: `github.com/DevInIndia/fahrbereit` (Public, 234 passing tests).
+* **GitHub Repository**: `github.com/DevInIndia/fahrbereit` (Public, 266 passing tests).

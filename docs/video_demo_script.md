@@ -27,17 +27,17 @@ Scripted 2 to 4 minute video demonstration walkthrough for hackathon submission.
 ### 1:00 - 1:45 | Conversational Turn & Live A2UI Progress Surface
 * **Visual**: Type into the chat box: *"Ich brauche für ein Wochenende ein Auto für einen Umzug in Hamburg, Budget 95 Euro am Tag."* Click **Send**. Point cursor at the live progress surface streaming incremental thoughts and tool calls via A2UI SSE.
 * **Narration**: 
-  > "Now let's test a live conversational turn. I type a rental request in German for a moving flat weekend in Hamburg. Watch the live progress panel powered by A2UI SSE streaming. The agent calls our `interview` tool to record slots with explicit provenance—marking stated constraints, inferred parameters, and default assumptions. Provenance is visually distinct: solid tags for stated items, dashed tags for assumed defaults."
+  > "Now let's test a live conversational turn. I type a rental request in German for a moving flat weekend in Hamburg. Watch the live progress panel powered by A2UI SSE streaming. The agent calls our `interview` tool to record slots with explicit provenance, marking stated constraints, inferred parameters, and default assumptions. Provenance is visually distinct: solid tags for stated items, dashed tags for assumed defaults."
 
 ### 1:45 - 2:15 | Ranked Catalogue & "Warum dieses Auto" Rationale
 * **Visual**: Scroll down to the updated A2UI catalogue. Hover over the "Warum dieses Auto" panel explaining why the Kia Carnival beat the Seat Leon runner-up.
 * **Narration**: 
-  > "The ranked catalogue updates dynamically. Notice our dedicated rental cost model: for a 3-day rental, it costs base rates over days, fuel over distance, and excess mileage penalties, while keeping refundable deposits separate. Notice also our pickup radius constraint—automatically capping rental pickup distance at 100 km."
+  > "The ranked catalogue updates dynamically. Notice our dedicated rental cost model: for a 3-day rental, it costs base rates over days, fuel over distance, and excess mileage penalties, while keeping refundable deposits separate. Notice also our pickup radius constraint, which automatically capping rental pickup distance at 100 km."
 
 ### 2:15 - 2:45 | MCP Apps: Form Filling & Simulated Checkout
 * **Visual**: Click **Formular** in the flow controls. An intake form renders directly inside the chat window inside a sandboxed iframe (`ui://formular/intake.html`). Fill name and submit. Then click **Kasse** to show the checkout MCP App (`ui://kasse/checkout.html`) displaying net, 19% VAT, gross total, and the orange `SIMULATION` banner across the top.
 * **Narration**: 
-  > "Booking and purchase confirmation happen without leaving the chat stream using MCP Apps. Here, the intake form and checkout interface render as sandboxed iframes driven by protocol resources. Payment is 100% simulated end-to-end—no card input fields exist in the entire codebase, and a prominent orange SIMULATION banner is displayed."
+  > "Booking and purchase confirmation happen without leaving the chat stream using MCP Apps. Here, the intake form and checkout interface render as sandboxed iframes driven by protocol resources. Payment is 100% simulated end to end. No card input fields exist in the entire codebase, and a prominent orange SIMULATION banner is displayed."
 
 ### 2:45 - 3:00 | Reload & Persistence Verification
 * **Visual**: Refresh the browser page (`F5`). State persists cleanly and the interview panel reloads existing slot history.
