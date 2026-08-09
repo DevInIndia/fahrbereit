@@ -26,6 +26,15 @@ const STRINGS: Record<string, Record<Lang, string>> = {
   formular: { de: "Formular", en: "Form" },
   kasse: { de: "Kasse", en: "Checkout" },
 
+  schritt1Titel: { de: "Schritt 1 von 3 · KI-Suche & Katalog", en: "Step 1 of 3 · AI Discovery & Catalogue" },
+  schritt2Titel: { de: "Schritt 2 von 3 · Reservierung & Kontaktdaten", en: "Step 2 of 3 · Reservation & Contact Intake" },
+  schritt3Titel: { de: "Schritt 3 von 3 · Simulierte Kasse & Bestätigung", en: "Step 3 of 3 · Simulated Checkout & Confirmation" },
+  weiterZuFormular: { de: "Weiter zum Formular", en: "Proceed to Intake Form" },
+  weiterZuKasse: { de: "Weiter zur Kasse", en: "Proceed to Checkout" },
+  zurueckZuKatalog: { de: "Zurück zum Katalog", en: "Back to Catalogue" },
+  zurueckZuFormular: { de: "Zurück zum Formular", en: "Back to Form" },
+  neueSuche: { de: "Neue Suche starten", en: "Start New Search" },
+
   zuruecksetzen: { de: "zurücksetzen", en: "reset" },
   nur: { de: "nur", en: "only" },
   offen: { de: "offen", en: "open" },

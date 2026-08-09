@@ -7,6 +7,7 @@ import { IntroLanding } from "./IntroLanding";
 import { Footer } from "./Footer";
 import { LANGS, type Lang, t } from "./i18n";
 import {
+  ArrowRight,
   AutoMarke,
   ClipboardList,
   FahrbereitMarke,
@@ -361,7 +362,10 @@ export default function App() {
               <button
                 key={s}
                 className={`nav-tab ${s === schritt ? "aktiv" : ""}`}
-                onClick={() => setSchrittUndScrollen(s)}
+                onClick={() => {
+                  setSchritt(s);
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
                 aria-current={s === schritt ? "page" : undefined}
               >
                 <Ikone size={NAV_GROESSE} className="ikone" />
@@ -431,51 +435,121 @@ export default function App() {
         </details>
 
         <main className="haupt">
-          <IntroLanding
-            lang={lang}
-            onStartClick={() => {
-              const chatEl = document.querySelector(".chat");
-              chatEl?.scrollIntoView({ behavior: "smooth", block: "start" });
-              setTimeout(() => {
-                const inputEl = document.querySelector(".chat-eingabe-text, .chat-eingabe textarea") as HTMLTextAreaElement;
-                inputEl?.focus();
-              }, 400);
-            }}
-            onExploreClick={() => {
-              setSchrittUndScrollen("katalog");
-            }}
-          />
+          {schritt === "katalog" && (
+            <>
+              <IntroLanding
+                lang={lang}
+                onStartClick={() => {
+                  const chatEl = document.querySelector(".chat");
+                  chatEl?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  setTimeout(() => {
+                    const inputEl = document.querySelector(".chat-eingabe-text, .chat-eingabe textarea") as HTMLTextAreaElement;
+                    inputEl?.focus();
+                  }, 400);
+                }}
+                onExploreClick={() => {
+                  surfaceRef.current?.scrollIntoView({ behavior: "smooth" });
+                }}
+              />
 
-          <Chat
-            sessionId={sessionId}
-            lang={lang}
-            verlauf={verlauf}
-            laeuft={laeuft}
-            onSenden={senden}
-            onZuruecksetzen={zuruecksetzen}
-          />
+              <Chat
+                sessionId={sessionId}
+                lang={lang}
+                verlauf={verlauf}
+                laeuft={laeuft}
+                onSenden={senden}
+                onZuruecksetzen={zuruecksetzen}
+              />
 
-          <FortschrittSurface />
+              <FortschrittSurface />
 
-          <div ref={surfaceRef} style={{ scrollMarginTop: 20 }}>
-            {schritt === "katalog" && <Katalog lang={lang} />}
-            {schritt === "formular" && (
+              <div ref={surfaceRef} style={{ scrollMarginTop: 20 }}>
+                <Katalog lang={lang} />
+                <div className="schritt-verbindung-leiste">
+                  <button
+                    className="schritt-btn primary"
+                    onClick={() => {
+                      setSchritt("formular");
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }}
+                  >
+                    <span>{t("weiterZuFormular", lang)}</span>
+                    <ArrowRight size={16} className="ikone" />
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+
+          {schritt === "formular" && (
+            <div className="schritt-seite">
+              <div className="schritt-kopfzeile">
+                <div className="eyebrow">{t("schritt2Titel", lang)}</div>
+              </div>
               <AppFrame
                 title={t("anfrageformular", lang)}
                 lang={lang}
                 endpoint={`/api/app/formular?listing_id=FB-00001&intent=${intent}&fahrzeug=${fahrzeug}&lang=${lang}`}
                 onToolResult={onToolResult}
               />
-            )}
-            {schritt === "kasse" && (
+              <div className="schritt-verbindung-leiste">
+                <button
+                  className="schritt-btn secondary"
+                  onClick={() => {
+                    setSchritt("katalog");
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                >
+                  ← {t("zurueckZuKatalog", lang)}
+                </button>
+                <button
+                  className="schritt-btn primary"
+                  onClick={() => {
+                    setSchritt("kasse");
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                >
+                  <span>{t("weiterZuKasse", lang)}</span>
+                  <ArrowRight size={16} className="ikone" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {schritt === "kasse" && (
+            <div className="schritt-seite">
+              <div className="schritt-kopfzeile">
+                <div className="eyebrow">{t("schritt3Titel", lang)}</div>
+              </div>
               <AppFrame
                 title={t("kasseSimuliert", lang)}
                 lang={lang}
                 endpoint={`/api/app/kasse?listing_id=FB-00001&intent=${intent}&betrag_eur=${istMiete ? 147 : 21490}&fahrzeug=${fahrzeug}&lang=${lang}`}
                 onToolResult={onToolResult}
               />
-            )}
-          </div>
+              <div className="schritt-verbindung-leiste">
+                <button
+                  className="schritt-btn secondary"
+                  onClick={() => {
+                    setSchritt("formular");
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                >
+                  ← {t("zurueckZuFormular", lang)}
+                </button>
+                <button
+                  className="schritt-btn primary"
+                  onClick={() => {
+                    setSchritt("katalog");
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                >
+                  <span>{t("neueSuche", lang)}</span>
+                  <ArrowRight size={16} className="ikone" />
+                </button>
+              </div>
+            </div>
+          )}
         </main>
       </div>
 
