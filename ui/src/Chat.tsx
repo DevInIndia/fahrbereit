@@ -127,6 +127,7 @@ export function Chat({
 
       <div className="chat-eingabe">
         <textarea
+          className="chat-eingabe-text"
           value={entwurf}
           onChange={(e) => setEntwurf(e.target.value)}
           onKeyDown={(e) => {

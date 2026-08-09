@@ -434,9 +434,12 @@ export default function App() {
           <IntroLanding
             lang={lang}
             onStartClick={() => {
-              const el = document.querySelector(".chat-eingabe-text") as HTMLTextAreaElement;
-              el?.focus();
-              el?.scrollIntoView({ behavior: "smooth", block: "center" });
+              const chatEl = document.querySelector(".chat");
+              chatEl?.scrollIntoView({ behavior: "smooth", block: "start" });
+              setTimeout(() => {
+                const inputEl = document.querySelector(".chat-eingabe-text, .chat-eingabe textarea") as HTMLTextAreaElement;
+                inputEl?.focus();
+              }, 400);
             }}
             onExploreClick={() => {
               setSchrittUndScrollen("katalog");
