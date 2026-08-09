@@ -23,8 +23,6 @@
 
 ## 💡 What is Fahrbereit?
 
-![Fahrbereit Interface Preview](docs/images/ui-preview.png)
-
 **Fahrbereit** is a conversational vehicle discovery agent designed for buying or renting cars in Germany. You describe your situation in plain natural language (German or English); the agent collects relevant criteria, applies context-aware slot filling with strict provenance, filters a marketplace of **280 synthetic listings**, and presents ranked options backed by mathematically verifiable scores and **5-year German total cost of ownership (TCO)** calculations.
 
 The interaction ends with an intake form and an end-to-end simulated checkout, both rendered as interactive **Generative UI (A2UI)** surfaces directly within the conversational interface.
